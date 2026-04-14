@@ -34,7 +34,7 @@ export async function fetchShopeeProductInfo(
 
     // Call external API
     const res = await fetch(
-      `http://[::1]:3001/common/products/${encodedUrl}`,
+      `https://tool-api.gitlabserver.id.vn/common/products/${encodedUrl}`,
       {
         method: "GET",
         headers: {
@@ -77,9 +77,7 @@ export async function fetchShopeeProductInfo(
 /**
  * Check if product already exists by external_id
  */
-export async function checkProductExists(
-  externalId: string,
-): Promise<boolean> {
+export async function checkProductExists(externalId: string): Promise<boolean> {
   try {
     const res = await fetch(
       `/api/products?external_id=${encodeURIComponent(externalId)}`,

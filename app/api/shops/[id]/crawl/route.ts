@@ -67,7 +67,7 @@ export async function POST(
 
     // Call external crawl API
     const crawlResponse = await fetch(
-      "http://[::1]:3001/common/shop-crawl-data",
+      "https://tool-api.gitlabserver.id.vn/common/shop-crawl-data",
       {
         method: "POST",
         headers: {
@@ -99,7 +99,11 @@ export async function POST(
       try {
         crawlData = JSON.parse(responseText);
       } catch (parseError) {
-        console.error("Failed to parse crawl API response:", parseError, responseText);
+        console.error(
+          "Failed to parse crawl API response:",
+          parseError,
+          responseText,
+        );
       }
     } else {
       console.warn("Crawl API returned empty response");
