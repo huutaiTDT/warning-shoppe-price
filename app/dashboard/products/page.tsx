@@ -2,20 +2,22 @@
 
 "use client";
 
+import { AddProductModal } from "@/components/products/add-product-modal";
 import { ProductsGrid } from "@/components/products/products-grid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCallback, useEffect, useState } from "react";
 import {
-  Download,
-  Upload,
-  Grid3x3,
-  List,
   ChevronLeft,
   ChevronRight,
-  TrendingDown,
+  Download,
+  Grid3x3,
+  List,
+  Plus,
   Search,
+  TrendingDown,
+  Upload,
 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -34,6 +36,7 @@ export default function ProductsPage() {
   const [overOriginal, setOverOriginal] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // ================= DEBOUNCE =================
   useEffect(() => {
@@ -124,29 +127,29 @@ export default function ProductsPage() {
 
   // ================= UI =================
   return (
-    <div className="space-y-3">
+    <div className='space-y-3'>
       {/* Toolbar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 space-y-3">
+      <div className='bg-slate-900 border border-slate-800 rounded-lg p-3 space-y-3'>
         {/* Row 1: Search and Filters */}
-        <div className="flex flex-col md:flex-row gap-2 items-center">
-          <div className="relative flex-1">
+        <div className='flex flex-col md:flex-row gap-2 items-center'>
+          <div className='relative flex-1'>
             <Search
               size={16}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500"
+              className='absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500'
             />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm kiếm sản phẩm..."
-              className="pl-8 h-8 text-xs bg-slate-800 border-slate-700 text-slate-200 placeholder-slate-500"
+              placeholder='Tìm kiếm sản phẩm...'
+              className='pl-8 h-8 text-xs bg-slate-800 border-slate-700 text-slate-200 placeholder-slate-500'
             />
           </div>
 
           <select
             value={shop}
             onChange={(e) => setShop(e.target.value)}
-            className="h-8 px-2 rounded text-xs bg-slate-800 border border-slate-700 text-slate-200">
-            <option value="">Tất cả cửa hàng</option>
+            className='h-8 px-2 rounded text-xs bg-slate-800 border border-slate-700 text-slate-200'>
+            <option value=''>Tất cả cửa hàng</option>
             {shops.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -158,68 +161,82 @@ export default function ProductsPage() {
             variant={overOriginal ? "default" : "outline"}
             onClick={() => setOverOriginal(!overOriginal)}
             disabled={loading}
-            size="sm"
-            className="text-xs h-8 bg-slate-800 border-slate-700 text-slate-300 hover:text-slate-100">
-            <TrendingDown size={16} className="mr-1" />
+            size='sm'
+            className='text-xs h-8 bg-slate-800 border-slate-700 text-slate-300 hover:text-slate-100'>
+            <TrendingDown size={16} className='mr-1' />
             Dưới niêm yết
           </Button>
         </div>
 
         {/* Row 2: Actions and View */}
-        <div className="flex gap-2 justify-between items-center">
-          <div className="flex gap-2">
+        <div className='flex gap-2 justify-between items-center'>
+          <div className='flex gap-2'>
+            <Button
+              onClick={() => setShowAddModal(true)}
+              size='sm'
+              className='text-xs h-8 bg-emerald-600 hover:bg-emerald-700'
+              title='Thêm sản phẩm mới'>
+              <Plus size={16} className='mr-1' />
+              Thêm sản phẩm
+            </Button>
+
             <Button
               onClick={handleExport}
               disabled={exporting}
-              size="sm"
-              className="text-xs h-8 bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100"
-              title="Tải xuống">
-              <Download size={16} className="mr-1" />
+              size='sm'
+              className='text-xs h-8 bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100'
+              title='Tải xuống'>
+              <Download size={16} className='mr-1' />
               {exporting ? "..." : "Tải xuống"}
             </Button>
 
-            <label className="cursor-pointer">
-              <input type="file" accept=".xlsx" hidden onChange={handleImport} />
+            <label className='cursor-pointer'>
+              <input
+                type='file'
+                accept='.xlsx'
+                hidden
+                onChange={handleImport}
+              />
               <Button
                 asChild
                 disabled={importing}
-                size="sm"
-                className="text-xs h-8 bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100"
-                title="Nhập từ Excel">
+                size='sm'
+                className='text-xs h-8 bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100'
+                title='Nhập từ Excel'>
                 <span>
-                  <Upload size={16} className="mr-1" />
+                  <Upload size={16} className='mr-1' />
                   {importing ? "..." : "Nhập"}
                 </span>
               </Button>
             </label>
           </div>
 
-          <div className="flex gap-2">
+          <div className='flex gap-2'>
             <Button
-              size="sm"
+              size='sm'
               variant={viewMode === "grid" ? "default" : "outline"}
               onClick={() => setViewMode("grid")}
-              className="text-xs h-8"
-              title="Lưới">
+              className='text-xs h-8'
+              title='Lưới'>
               <Grid3x3 size={16} />
             </Button>
             <Button
-              size="sm"
+              size='sm'
               variant={viewMode === "list" ? "default" : "outline"}
               onClick={() => setViewMode("list")}
-              className="text-xs h-8"
-              title="Danh sách">
+              className='text-xs h-8'
+              title='Danh sách'>
               <List size={16} />
             </Button>
           </div>
         </div>
 
         {/* Info */}
-        <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className='flex items-center justify-between text-xs text-slate-400'>
           <p>
-            {loading && <span className="animate-spin mr-2">⏳</span>}
+            {loading && <span className='animate-spin mr-2'>⏳</span>}
             Hiển thị{" "}
-            <span className="text-slate-200 font-semibold">
+            <span className='text-slate-200 font-semibold'>
               {products?.length > 0 ? (page - 1) * 25 + 1 : 0} -{" "}
               {Math.min(page * 25, total)}
             </span>{" "}
@@ -227,8 +244,8 @@ export default function ProductsPage() {
           </p>
           {pages > 1 && (
             <p>
-              Trang <span className="text-slate-200 font-semibold">{page}</span> /{" "}
-              {pages}
+              Trang <span className='text-slate-200 font-semibold'>{page}</span>{" "}
+              / {pages}
             </p>
           )}
         </div>
@@ -244,32 +261,39 @@ export default function ProductsPage() {
 
       {/* Pagination */}
       {pages > 1 && (
-        <div className="flex justify-center gap-2 py-3">
+        <div className='flex justify-center gap-2 py-3'>
           <Button
-            variant="outline"
+            variant='outline'
             disabled={page === 1 || loading}
             onClick={() => setPage(page - 1)}
-            size="sm"
-            className="text-xs h-8">
+            size='sm'
+            className='text-xs h-8'>
             <ChevronLeft size={16} />
           </Button>
 
-          <div className="px-3 py-1.5 border border-slate-700 rounded bg-slate-800 text-slate-300 text-xs">
+          <div className='px-3 py-1.5 border border-slate-700 rounded bg-slate-800 text-slate-300 text-xs'>
             {page}/{pages}
           </div>
 
           <Button
-            variant="outline"
+            variant='outline'
             disabled={page === pages || loading}
             onClick={() => setPage(page + 1)}
-            size="sm"
-            className="text-xs h-8">
+            size='sm'
+            className='text-xs h-8'>
             <ChevronRight size={16} />
           </Button>
         </div>
       )}
 
       {/* Modal */}
+      {showAddModal && (
+        <AddProductModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => fetchProducts()}
+        />
+      )}
+
       {selectedProduct && (
         <ProductDetailModal
           product={selectedProduct}
@@ -284,50 +308,50 @@ export default function ProductsPage() {
 function ProductDetailModal({ product, onClose }: any) {
   return (
     <div
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      className='fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50'
       onClick={onClose}>
       <div
-        className="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-lg p-6 space-y-4 animate-in zoom-in-95 translate-y-0"
+        className='bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-lg p-6 space-y-4 animate-in zoom-in-95 translate-y-0'
         onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-start">
-          <h2 className="text-lg font-semibold text-slate-100">
+        <div className='flex justify-between items-start'>
+          <h2 className='text-lg font-semibold text-slate-100'>
             {product.name}
           </h2>
           <button
-            className="text-slate-400 hover:text-slate-200 transition"
+            className='text-slate-400 hover:text-slate-200 transition'
             onClick={onClose}>
             ✕
           </button>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className='grid md:grid-cols-2 gap-4'>
           {product.image && (
             <img
               src={product.image}
-              loading="lazy"
-              className="rounded-lg object-cover w-full h-60 bg-slate-800"
+              loading='lazy'
+              className='rounded-lg object-cover w-full h-60 bg-slate-800'
             />
           )}
 
-          <div className="space-y-3 text-sm text-slate-300">
+          <div className='space-y-3 text-sm text-slate-300'>
             <div>
-              <p className="text-slate-500 text-xs mb-1">💰 Giá</p>
-              <p className="text-lg font-semibold text-emerald-400">
+              <p className='text-slate-500 text-xs mb-1'>💰 Giá</p>
+              <p className='text-lg font-semibold text-emerald-400'>
                 {product.priceMin} - {product.priceMax}
               </p>
             </div>
 
-            <div className="flex gap-4">
+            <div className='flex gap-4'>
               <div>
-                <p className="text-slate-500 text-xs mb-1">⭐ Đánh giá</p>
-                <p className="font-semibold text-yellow-400">
+                <p className='text-slate-500 text-xs mb-1'>⭐ Đánh giá</p>
+                <p className='font-semibold text-yellow-400'>
                   {product.rating.toFixed(1)} ({product.sold} đã bán)
                 </p>
               </div>
               {product.shopName && (
                 <div>
-                  <p className="text-slate-500 text-xs mb-1">🏪 Cửa hàng</p>
-                  <p className="font-semibold">{product.shopName}</p>
+                  <p className='text-slate-500 text-xs mb-1'>🏪 Cửa hàng</p>
+                  <p className='font-semibold'>{product.shopName}</p>
                 </div>
               )}
             </div>
@@ -335,14 +359,12 @@ function ProductDetailModal({ product, onClose }: any) {
             {product.priceOriginal > 0 && (
               <>
                 <div>
-                  <p className="text-slate-500 text-xs mb-1">
-                    📌 Giá niêm yết
-                  </p>
-                  <p className="font-semibold text-slate-400 line-through">
+                  <p className='text-slate-500 text-xs mb-1'>📌 Giá niêm yết</p>
+                  <p className='font-semibold text-slate-400 line-through'>
                     {product.priceOriginal}
                   </p>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className='text-xs text-slate-500'>
                   {product.priceTrend === "down" && "↓ Giá tốt"}
                   {product.priceTrend === "up" && "↑ Giá cao"}
                   {product.priceTrend === "equal" && "= Giá tương đương"}
@@ -351,7 +373,7 @@ function ProductDetailModal({ product, onClose }: any) {
             )}
 
             {product.discount > 0 && (
-              <span className="inline-block bg-red-500/20 text-red-400 px-3 py-1 rounded text-xs font-semibold">
+              <span className='inline-block bg-red-500/20 text-red-400 px-3 py-1 rounded text-xs font-semibold'>
                 🔥 Giảm {product.discount}%
               </span>
             )}
@@ -359,8 +381,10 @@ function ProductDetailModal({ product, onClose }: any) {
         </div>
 
         {product.aff_link && (
-          <Button className="w-full bg-emerald-600 hover:bg-emerald-700" asChild>
-            <a href={product.aff_link} target="_blank">
+          <Button
+            className='w-full bg-emerald-600 hover:bg-emerald-700'
+            asChild>
+            <a href={product.aff_link} target='_blank'>
               Xem sản phẩm
             </a>
           </Button>

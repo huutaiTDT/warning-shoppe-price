@@ -1,10 +1,13 @@
-'use client';
+/** @format */
 
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { ShopsTable } from '@/components/shops/shops-table';
-import { ShopFormModal } from '@/components/shops/shop-form-modal';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+"use client";
+
+import { ShopFormModal } from "@/components/shops/shop-form-modal";
+import { ShopProductStatusModal } from "@/components/shops/shop-product-status-modal";
+import { ShopsTable } from "@/components/shops/shops-table";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function ShopsPage() {
   const [shops, setShops] = useState<any[]>([]);
@@ -14,6 +17,7 @@ export default function ShopsPage() {
   const [pages, setPages] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [editingShop, setEditingShop] = useState<any>(null);
+  const [statusShop, setStatusShop] = useState<any>(null);
 
   useEffect(() => {
     fetchShops();
@@ -28,29 +32,48 @@ export default function ShopsPage() {
       setTotal(data.total);
       setPages(data.pages);
     } catch (error) {
-      console.error('Error fetching shops:', error);
+      console.error("Error fetching shops:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa cửa hàng này?')) return;
+    if (!confirm("Bạn có chắc chắn muốn xóa cửa hàng này?")) return;
 
     try {
-      const res = await fetch(`/api/shops/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/shops/${id}`, { method: "DELETE" });
       if (res.ok) {
         setShops(shops.filter((s) => s.id !== id));
       }
     } catch (error) {
-      console.error('Error deleting shop:', error);
+      console.error("Error deleting shop:", error);
     }
   };
 
-  const handleSave = async () => {
-    fetchShops();
+  const handleCrawl = async (shopId: string) => {
+    try {
+      const res = await fetch(`/api/shops/${shopId}/crawl`, { method: "POST" });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(`❌ ${data.error || "Lỗi khi sys thông tin"}`);
+        return;
+      }
+
+      const data = await res.json();
+      alert(`✅ ${data.message || "Sys thành công"}`);
+      fetchShops();
+    } catch (error) {
+      console.error("Error crawling shop:", error);
+      alert("❌ Lỗi khi sys thông tin");
+    }
+  };
+
+  const handleSave = () => {
     setShowModal(false);
     setEditingShop(null);
+    fetchShops();
   };
 
   return (
@@ -58,7 +81,9 @@ export default function ShopsPage() {
       {/* Header and Controls */}
       <div className='bg-slate-900 border border-slate-800 rounded-lg p-4 flex items-center justify-between'>
         <div>
-          <h2 className='text-sm font-semibold text-slate-200'>Quản lý cửa hàng</h2>
+          <h2 className='text-sm font-semibold text-slate-200'>
+            Quản lý cửa hàng
+          </h2>
           <p className='text-xs text-slate-500 mt-1'>
             Quản lý các cửa hàng tiếp thị liên kết
           </p>
@@ -82,6 +107,8 @@ export default function ShopsPage() {
             setShowModal(true);
           }}
           onDelete={handleDelete}
+          onStatusClick={(shop) => setStatusShop(shop)}
+          onCrawl={handleCrawl}
         />
       </div>
 
@@ -89,7 +116,10 @@ export default function ShopsPage() {
       {pages > 1 && (
         <div className='bg-slate-900 border border-slate-800 rounded-lg p-3 flex items-center justify-between'>
           <p className='text-xs text-slate-400'>
-            Trang <span className='text-slate-200 font-semibold'>{page}</span> / {pages} • Tổng cộng: <span className='text-slate-200 font-semibold'>{total}</span> cửa hàng
+            Trang <span className='text-slate-200 font-semibold'>{page}</span> /{" "}
+            {pages} • Tổng cộng:{" "}
+            <span className='text-slate-200 font-semibold'>{total}</span> cửa
+            hàng
           </p>
           <div className='flex gap-2'>
             <Button
@@ -120,6 +150,14 @@ export default function ShopsPage() {
             setEditingShop(null);
           }}
           onSave={handleSave}
+        />
+      )}
+
+      {statusShop && (
+        <ShopProductStatusModal
+          shop={statusShop}
+          onClose={() => setStatusShop(null)}
+          onRefresh={fetchShops}
         />
       )}
     </div>

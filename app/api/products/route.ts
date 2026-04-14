@@ -27,27 +27,20 @@ export async function GET(request: NextRequest) {
     const limit = 25;
     const offset = (page - 1) * limit;
 
-    let query = supabase.from("products_aff").select(
-      `
-        *,
-        crawl_history!inner (
-          shop_id,
-          shops!inner (id, name)
-        )
-      `,
-      { count: "exact" },
-    );
+    let query = supabase
+      .from("products_aff")
+      .select("*, shops!shop_id(id, name)", { count: "exact" });
 
     if (search) {
       query = query.ilike("name", `%${search}%`);
     }
 
     if (minPrice) {
-      query = query.gte("priceMin", parseFloat(minPrice));
+      query = query.gte("price_min", parseFloat(minPrice));
     }
 
     if (maxPrice) {
-      query = query.lte("priceMax", parseFloat(maxPrice));
+      query = query.lte("price_max", parseFloat(maxPrice));
     }
 
     if (minRating) {
@@ -55,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (shopId) {
-      query = query.eq("crawl_history.shop_id", shopId);
+      query = query.eq("shop_id", shopId);
     }
 
     const sortedQuery = query.order("created_at", { ascending: false });
@@ -72,18 +65,9 @@ export async function GET(request: NextRequest) {
 
     const normalizedProducts = (products || []).map((product: any) => {
       const fallbackPrice = Number(product.price) || 0;
-      const priceMin = Number(
-        product.priceMin ?? product.price_min ?? fallbackPrice,
-      );
-      const priceMax = Number(
-        product.priceMax ?? product.price_max ?? fallbackPrice,
-      );
-      const priceOriginal = Number(
-        product.priceOriginal ??
-          product.price_original ??
-          product.original_price ??
-          0,
-      );
+      const priceMin = Number(product.price_min ?? fallbackPrice);
+      const priceMax = Number(product.price_max ?? fallbackPrice);
+      const priceOriginal = Number(product.original_price ?? 0);
       const shopeeAvgPrice = (priceMin + priceMax) / 2;
       const priceDelta = shopeeAvgPrice - priceOriginal;
       const isAboveOriginal = priceOriginal > 0 && priceMin > priceOriginal;
@@ -103,8 +87,8 @@ export async function GET(request: NextRequest) {
         priceDelta,
         priceTrend,
         isAboveOriginal,
-        shopId: product.crawl_history?.shop_id || null,
-        shopName: product.crawl_history?.shops?.name || null,
+        shopId: product.shop_id,
+        shopName: product.shops?.name || null,
       };
     });
 
