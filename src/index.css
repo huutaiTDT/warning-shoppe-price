@@ -25,63 +25,160 @@ body {
   background: #111827;
 }
 
-/* Ant Design Dark Theme */
+/* ===== ANT DESIGN DARK THEME ===== */
+
+/* Button */
 .ant-btn-primary {
   @apply bg-emerald-600 hover:bg-emerald-700 border-emerald-600 hover:border-emerald-700;
 }
 
-.ant-card {
-  @apply bg-gray-900 border-gray-800;
+.ant-btn-default {
+  @apply border-gray-700 hover:border-gray-600;
 }
 
+/* Card */
+.ant-card {
+  @apply bg-gray-900 border-0;
+}
+
+.ant-card-head {
+  @apply bg-gray-900 border-b border-gray-800;
+}
+
+/* Input - NO BORDER */
 .ant-input,
 .ant-input-number,
-.ant-select-selector {
-  @apply bg-gray-800 border-gray-700 text-white;
+.ant-select-selector,
+.ant-picker {
+  @apply bg-gray-800 border-0 text-white placeholder-gray-500;
 }
 
+.ant-input:hover,
+.ant-input-number:hover,
+.ant-select-selector:hover,
+.ant-picker:hover {
+  @apply bg-gray-700;
+}
+
+.ant-input:focus,
+.ant-input-number:focus,
+.ant-select-selector:focus,
+.ant-picker:focus {
+  @apply bg-gray-700 ring-1 ring-emerald-600;
+}
+
+.ant-input-disabled {
+  @apply bg-gray-900 text-gray-600;
+}
+
+/* Select */
 .ant-select-item {
-  @apply bg-gray-800 text-white;
+  @apply bg-gray-800 text-white hover:bg-gray-700;
 }
 
+.ant-select-item-group-label {
+  @apply text-gray-400;
+}
+
+/* Table */
 .ant-table {
   @apply bg-gray-900 text-gray-100;
 }
 
 .ant-table-thead > tr > th {
-  @apply bg-gray-800 text-gray-300 font-semibold;
+  @apply bg-gray-800 text-gray-300 font-semibold border-b border-gray-700;
 }
 
 .ant-table-tbody > tr {
-  @apply hover:bg-gray-800;
+  @apply border-b border-gray-800 hover:bg-gray-800;
 }
 
+.ant-table-cell {
+  @apply text-sm;
+}
+
+/* Modal */
 .ant-modal-content {
-  @apply bg-gray-900 border-gray-800;
+  @apply bg-gray-900 border-0;
 }
 
 .ant-modal-header {
-  @apply bg-gray-900 border-gray-800;
+  @apply bg-gray-900 border-b border-gray-800;
 }
 
 .ant-modal-title {
   @apply text-white;
 }
 
+/* Form */
 .ant-form-item-label > label {
   @apply text-gray-300;
 }
 
-.ant-input::placeholder {
-  @apply text-gray-500;
+.ant-form-item-required::before {
+  @apply text-red-500;
 }
 
-.ant-select-focused .ant-select-selector {
+/* Dropdown */
+.ant-dropdown-menu {
+  @apply bg-gray-900 border-gray-700;
+}
+
+.ant-dropdown-menu-item {
+  @apply text-gray-300 hover:bg-gray-800;
+}
+
+/* Popconfirm / Popover */
+.ant-popover-inner {
+  @apply bg-gray-900 border-gray-700;
+}
+
+.ant-popover-title {
+  @apply text-white border-b border-gray-700;
+}
+
+/* Pagination */
+.ant-pagination-item {
+  @apply bg-gray-800 border-gray-700;
+}
+
+.ant-pagination-item-active {
+  @apply bg-emerald-600 border-emerald-600;
+}
+
+.ant-pagination-item:hover {
   @apply border-emerald-600;
 }
 
-.ant-input:focus {
-  @apply border-emerald-600;
+/* Checkbox & Radio */
+.ant-checkbox-wrapper {
+  @apply text-gray-300;
+}
+
+.ant-checkbox-inner {
+  @apply bg-gray-800 border-gray-700;
+}
+
+.ant-radio-wrapper {
+  @apply text-gray-300;
+}
+
+.ant-radio-inner {
+  @apply bg-gray-800 border-gray-700;
+}
+
+/* Message / Notification */
+.ant-message-notice-content {
+  @apply bg-gray-800 text-white;
+}
+
+.ant-notification-notice {
+  @apply bg-gray-900 border-gray-700;
+}
+
+/* Alert */
+.ant-alert {
+  @apply bg-gray-800 border-gray-700;
 }
 
 /* Scrollbar */
@@ -96,4 +193,17 @@ body {
 
 ::-webkit-scrollbar-thumb {
   @apply bg-gray-600 rounded hover:bg-gray-500;
+}
+
+/* Utility */
+.ant-empty-description {
+  @apply text-gray-400;
+}
+
+.ant-spin-text {
+  @apply text-gray-400;
+}
+
+.ant-btn-text {
+  @apply text-gray-400 hover:text-gray-300;
 }

@@ -43,7 +43,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchUnderPriceProducts = async () => {
       try {
-        const res = await productsAPI.list(1, 20, undefined, {
+        const res = await productsAPI.list(1, 10, undefined, {
           underOriginal: true,
         });
         setProductsUnderPrice(res.data.products || []);
@@ -59,10 +59,9 @@ export default function DashboardPage() {
 
   const columns = [
     {
-      title: "Tên sản phẩm",
+      title: "Sản phẩm",
       dataIndex: "name",
       key: "name",
-      width: 200,
       render: (text: string) => <span className="truncate">{text}</span>,
     },
     {
@@ -70,32 +69,28 @@ export default function DashboardPage() {
       dataIndex: "priceMin",
       key: "priceMin",
       render: (price: number) => (
-        <span className="text-emerald-500 font-semibold">
-          {formatPrice(price)}
-        </span>
+        <span className="text-emerald-500 font-semibold">{formatPrice(price)}</span>
       ),
     },
     {
-      title: "Giá niêm yết",
+      title: "Giá gốc",
       dataIndex: "priceOriginal",
       key: "priceOriginal",
       render: (price: number) => (
-        <span className="text-gray-400 line-through">{formatPrice(price)}</span>
+        <span className="text-gray-400 line-through text-sm">{formatPrice(price)}</span>
       ),
     },
     {
-      title: "Giảm giá",
+      title: "Giảm",
       dataIndex: "discount",
       key: "discount",
       render: (discount: number) =>
         discount > 0 ? (
-          <span className="px-2 py-1 bg-red-500/20 text-red-500 rounded text-xs font-semibold">
-            -{discount}%
-          </span>
+          <span className="text-red-500 font-semibold">-{discount}%</span>
         ) : null,
     },
     {
-      title: "Đánh giá",
+      title: "Rating",
       dataIndex: "rating",
       key: "rating",
       render: (rating: number) => (
@@ -108,11 +103,11 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <Row gutter={16}>
         <Col xs={24} sm={12} lg={8}>
-          <Card loading={loadingStats}>
+          <Card loading={loadingStats} size="small">
             <Statistic
               title="Tổng cửa hàng"
               value={totalShops}
-              prefix={<Store size={20} className="text-emerald-500" />}
+              prefix={<Store size={18} className="text-emerald-500" />}
             />
             <Link to="/dashboard/shops">
               <Button type="text" size="small" className="w-full mt-3">
@@ -123,11 +118,11 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} sm={12} lg={8}>
-          <Card loading={loadingStats}>
+          <Card loading={loadingStats} size="small">
             <Statistic
               title="Tổng sản phẩm"
               value={totalProducts}
-              prefix={<Package size={20} className="text-blue-500" />}
+              prefix={<Package size={18} className="text-blue-500" />}
             />
             <Link to="/dashboard/products">
               <Button type="text" size="small" className="w-full mt-3">
@@ -138,11 +133,11 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} sm={12} lg={8}>
-          <Card loading={loadingStats}>
+          <Card loading={loadingStats} size="small">
             <Statistic
               title="Lịch sử quét"
               value={totalProducts}
-              prefix={<BarChart3 size={20} className="text-purple-500" />}
+              prefix={<BarChart3 size={18} className="text-purple-500" />}
             />
             <Link to="/dashboard/crawl-history">
               <Button type="text" size="small" className="w-full mt-3">
@@ -156,27 +151,30 @@ export default function DashboardPage() {
       <Card
         title={
           <div className="flex items-center gap-2">
-            <TrendingDown size={18} className="text-yellow-500" />
-            <span>Sản phẩm dưới giá niêm yết</span>
+            <TrendingDown size={16} className="text-yellow-500" />
+            <span className="text-sm">Sản phẩm dưới giá</span>
           </div>
         }
-        loading={loadingProducts}>
+        loading={loadingProducts}
+        size="small"
+      >
         {productsUnderPrice.length === 0 && !loadingProducts ? (
-          <Empty description="Không có sản phẩm nào dưới giá niêm yết" />
+          <Empty description="Không có dữ liệu" />
         ) : (
           <Table
             columns={columns}
             dataSource={productsUnderPrice}
             rowKey="id"
             pagination={false}
-            scroll={{ x: 800 }}
+            scroll={{ x: 600 }}
+            size="small"
           />
         )}
 
         <div className="mt-4">
           <Link to="/dashboard/products">
-            <Button type="primary">
-              Xem tất cả sản phẩm <ChevronRight size={14} />
+            <Button type="primary" size="small">
+              Xem tất cả <ChevronRight size={14} />
             </Button>
           </Link>
         </div>

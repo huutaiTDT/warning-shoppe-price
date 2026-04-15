@@ -23,7 +23,6 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
-    alert(token);
     setIsAuthenticated(!!token);
   }, []);
 
@@ -41,11 +40,43 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   const theme = {
     token: {
+      colorBgBase: "#101828",
       colorPrimary: "#10b981",
       colorBgContainer: "#1f2937",
       colorBorder: "#374151",
-      colorTextBase: "#e5e7eb",
-      borderRadius: 6,
+      colorOutline: "#1f2937",
+      colorRing: "#10b981",
+      colorTextBase: "#fff",
+      colorBgElevated: "#374151",
+      colorBgHover: "#1f2937",
+      borderRadius: 0,
+      outline: "none",
+      borderSize: 1,
+      fontSize: 13,
+      fontSizeHeading1: 24,
+      fontSizeHeading2: 22,
+      fontSizeHeading3: 20,
+      fontSizeHeading4: 18,
+      fontSizeHeading5: 16,
+      fontSizeHeading6: 14,
+      controlHeight: 40,
+      innerHeight: 32,
+      itemActiveColor: "#10b981",
+      itemHoverColor: "#1f2937",
+      itemSelectedColor: "#10b981",
+      itemSelectedHoverColor: "#1f2937",
+      itemDisabledColor: "#374151",
+      itemDisabledHoverColor: "#374151",
+      itemHoverBgColor: "#1f2937",
+      itemActiveBgColor: "#10b981",
+      itemSelectedBgColor: "#10b981",
+      itemSelectedHoverBgColor: "#1f2937",
+      itemDisabledBgColor: "#374151",
+      itemDisabledHoverBgColor: "#374151",
+      outerHeight: 40,
+      controlWidth: 40,
+      controlHeightLG: 40,
+      controlHeightSM: 32,
     },
     algorithm: undefined, // Will add dark theme
   };
