@@ -21,9 +21,9 @@ export async function GET(request: NextRequest) {
     const maxPrice = searchParams.get("maxPrice");
     const minRating = searchParams.get("minRating");
     const shopId = searchParams.get("shop") || "";
-    const overOriginal =
-      searchParams.get("overOriginal") === "true" ||
-      searchParams.get("underOriginal") === "true";
+    const underOriginal =
+      searchParams.get("underOriginal") === "true" ||
+      searchParams.get("overOriginal") === "true";
     const limit = 25;
     const offset = (page - 1) * limit;
 
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     const sortedQuery = query.order("created_at", { ascending: false });
     const response =
-      overOriginal ?
+      underOriginal ?
         await sortedQuery
       : await sortedQuery.range(offset, offset + limit - 1);
 
@@ -93,13 +93,13 @@ export async function GET(request: NextRequest) {
     });
 
     const filteredProducts =
-      overOriginal ?
-        normalizedProducts.filter((product: any) => product.isAboveOriginal)
+      underOriginal ?
+        normalizedProducts.filter((product: any) => !product.isAboveOriginal)
       : normalizedProducts;
 
-    const finalTotal = overOriginal ? filteredProducts?.length : count || 0;
+    const finalTotal = underOriginal ? filteredProducts?.length : count || 0;
     const finalProducts =
-      overOriginal ?
+      underOriginal ?
         filteredProducts.slice(offset, offset + limit)
       : filteredProducts;
 

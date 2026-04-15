@@ -33,7 +33,7 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [shop, setShop] = useState("");
-  const [overOriginal, setOverOriginal] = useState(false);
+  const [underOriginal, setUnderOriginal] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -52,7 +52,7 @@ export default function ProductsPage() {
         page: page.toString(),
         ...(debouncedSearch && { search: debouncedSearch }),
         ...(shop && { shop }),
-        ...(overOriginal && { overOriginal: "true" }),
+        ...(underOriginal && { underOriginal: "true" }),
       });
 
       const res = await fetch(`/api/products?${params}`);
@@ -64,7 +64,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, shop, overOriginal]);
+  }, [page, debouncedSearch, shop, underOriginal]);
 
   const fetchShops = useCallback(async () => {
     const res = await fetch("/api/shops?page=1&limit=1000");
@@ -158,8 +158,8 @@ export default function ProductsPage() {
           </select>
 
           <Button
-            variant={overOriginal ? "default" : "outline"}
-            onClick={() => setOverOriginal(!overOriginal)}
+            variant={underOriginal ? "default" : "outline"}
+            onClick={() => setUnderOriginal(!underOriginal)}
             disabled={loading}
             size='sm'
             className='text-xs h-8 bg-slate-800 border-slate-700 text-slate-300 hover:text-slate-100'>
@@ -306,6 +306,9 @@ export default function ProductsPage() {
 
 // ================= MODAL =================
 function ProductDetailModal({ product, onClose }: any) {
+  const thumbnail = getProductThumbnail(product);
+  const brand = getProductBrand(product);
+
   return (
     <div
       className='fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50'
@@ -325,9 +328,9 @@ function ProductDetailModal({ product, onClose }: any) {
         </div>
 
         <div className='grid md:grid-cols-2 gap-4'>
-          {product.image && (
+          {thumbnail && (
             <img
-              src={product.image}
+              src={thumbnail}
               loading='lazy'
               className='rounded-lg object-cover w-full h-60 bg-slate-800'
             />
@@ -341,7 +344,7 @@ function ProductDetailModal({ product, onClose }: any) {
               </p>
             </div>
 
-            <div className='flex gap-4'>
+            <div className='flex gap-4 flex-wrap'>
               <div>
                 <p className='text-slate-500 text-xs mb-1'>⭐ Đánh giá</p>
                 <p className='font-semibold text-yellow-400'>
@@ -352,6 +355,12 @@ function ProductDetailModal({ product, onClose }: any) {
                 <div>
                   <p className='text-slate-500 text-xs mb-1'>🏪 Cửa hàng</p>
                   <p className='font-semibold'>{product.shopName}</p>
+                </div>
+              )}
+              {brand && (
+                <div>
+                  <p className='text-slate-500 text-xs mb-1'>🏷 Thương hiệu</p>
+                  <p className='font-semibold'>{brand}</p>
                 </div>
               )}
             </div>
@@ -393,3 +402,64 @@ function ProductDetailModal({ product, onClose }: any) {
     </div>
   );
 }
+
+const getGalleryFirst = (gallery: unknown) => {
+  if (!gallery) return "";
+  if (Array.isArray(gallery)) {
+    return typeof gallery[0] === "string" ? gallery[0] : "";
+  }
+  if (typeof gallery === "string") {
+    try {
+      const parsed = JSON.parse(gallery);
+      if (Array.isArray(parsed)) {
+        return typeof parsed[0] === "string" ? parsed[0] : "";
+      }
+    } catch {
+      return "";
+    }
+  }
+  return "";
+};
+
+const getProductThumbnail = (product: any) => {
+  const candidates = [
+    product?.thumbnail,
+    product?.thumb,
+    product?.image,
+    product?.image_url,
+    product?.raw?.thumbnail,
+    product?.raw?.image,
+    product?.raw?.image_url,
+    getGalleryFirst(product?.gallery),
+    getGalleryFirst(product?.raw?.gallery),
+    getGalleryFirst(product?.raw?.images),
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate;
+    }
+  }
+
+  return "";
+};
+
+const getProductBrand = (product: any) => {
+  const candidates = [
+    product?.brand,
+    product?.brand_name,
+    product?.brandName,
+    product?.raw?.brand,
+    product?.raw?.brand_name,
+    product?.raw?.brandName,
+    product?.raw?.brand?.name,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate;
+    }
+  }
+
+  return "";
+};
