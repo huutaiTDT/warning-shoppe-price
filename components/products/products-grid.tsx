@@ -17,6 +17,67 @@ const toNumber = (value: unknown) => {
 
 type PriceState = "cheaper" | "higher" | "equal";
 
+const getGalleryFirst = (gallery: unknown) => {
+  if (!gallery) return "";
+  if (Array.isArray(gallery)) {
+    return typeof gallery[0] === "string" ? gallery[0] : "";
+  }
+  if (typeof gallery === "string") {
+    try {
+      const parsed = JSON.parse(gallery);
+      if (Array.isArray(parsed)) {
+        return typeof parsed[0] === "string" ? parsed[0] : "";
+      }
+    } catch {
+      return "";
+    }
+  }
+  return "";
+};
+
+const getProductThumbnail = (product: any) => {
+  const candidates = [
+    product?.thumbnail,
+    product?.thumb,
+    product?.image,
+    product?.image_url,
+    product?.raw?.thumbnail,
+    product?.raw?.image,
+    product?.raw?.image_url,
+    getGalleryFirst(product?.gallery),
+    getGalleryFirst(product?.raw?.gallery),
+    getGalleryFirst(product?.raw?.images),
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate;
+    }
+  }
+
+  return "";
+};
+
+const getProductBrand = (product: any) => {
+  const candidates = [
+    product?.brand,
+    product?.brand_name,
+    product?.brandName,
+    product?.raw?.brand,
+    product?.raw?.brand_name,
+    product?.raw?.brandName,
+    product?.raw?.brand?.name,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate;
+    }
+  }
+
+  return "";
+};
+
 const getPriceMetrics = (product: any) => {
   const priceMin = toNumber(product.priceMin ?? product.price_min);
   const priceMax = toNumber(product.priceMax ?? product.price_max);
@@ -127,6 +188,8 @@ export function ProductsGrid({
         {products?.map((product) => {
           const metrics = getPriceMetrics(product);
           const stateUI = getStateUI(metrics.state);
+          const thumbnail = getProductThumbnail(product);
+          const brand = getProductBrand(product);
 
           return (
             <Card
@@ -135,9 +198,9 @@ export function ProductsGrid({
               onClick={() => onSelectProduct(product)}>
               <div className='flex gap-3'>
                 <div className='h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-800'>
-                  {product.image && (
+                  {thumbnail && (
                     <img
-                      src={product.image}
+                      src={thumbnail}
                       alt={product.name}
                       className='h-full w-full object-cover transition-transform duration-300 group-hover:scale-105'
                       loading='lazy'
@@ -150,13 +213,14 @@ export function ProductsGrid({
                     {product.name}
                   </h3>
 
-                  <div className='mt-1 flex items-center gap-2 text-xs text-slate-400'>
+                  <div className='mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400'>
                     <span className='rounded-full bg-amber-500/20 px-2 py-0.5 text-amber-400'>
                       ⭐ {product.rating?.toFixed(1) || 0}
                     </span>
                     {product.shopName && (
                       <span className='truncate'>Shop: {product.shopName}</span>
                     )}
+                    {brand && <span className='truncate'>Brand: {brand}</span>}
                   </div>
 
                   <div className='mt-2 flex items-end gap-2'>
@@ -221,16 +285,18 @@ export function ProductsGrid({
       {products?.map((product) => {
         const metrics = getPriceMetrics(product);
         const stateUI = getStateUI(metrics.state);
+        const thumbnail = getProductThumbnail(product);
+        const brand = getProductBrand(product);
 
         return (
           <Card
             key={product.id}
             className='group cursor-pointer overflow-hidden rounded-lg border border-slate-800 bg-slate-900 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl'
             onClick={() => onSelectProduct(product)}>
-            {product.image && (
+            {thumbnail && (
               <div className='relative w-full aspect-square overflow-hidden bg-slate-800'>
                 <img
-                  src={product.image}
+                  src={thumbnail}
                   alt={product.name}
                   className='h-full w-full object-cover transition-transform duration-300 group-hover:scale-105'
                   loading='lazy'
@@ -286,6 +352,12 @@ export function ProductsGrid({
                   {product.shopName || "Unknown"}
                 </span>
               </div>
+
+              {brand && (
+                <p className='truncate text-[10px] text-slate-400'>
+                  Brand: {brand}
+                </p>
+              )}
 
               <div className='max-h-0 overflow-hidden rounded-lg bg-slate-800/50 px-2 text-[10px] text-slate-500 transition-all duration-300 group-hover:max-h-20 group-hover:py-1.5'>
                 <p>Current: {formatPrice(metrics.currentPrice)}</p>
