@@ -33,6 +33,8 @@ export function AddProductModal({ onClose, onSuccess }: AddProductModalProps) {
     priceMin: "",
     priceMax: "",
     image: "",
+    thumbnail: "",
+    brand: "",
     rating: "0",
     sold: "0",
     original_price: "",
@@ -89,7 +91,6 @@ export function AddProductModal({ onClose, onSuccess }: AddProductModalProps) {
       }
 
       // Pre-fill form with extracted data
-      alert(JSON.stringify(result));
       setFormData((prev) => ({
         ...prev,
         external_id: result.id,
@@ -97,7 +98,9 @@ export function AddProductModal({ onClose, onSuccess }: AddProductModalProps) {
         name: result.name || "",
         priceMin: result.priceMin?.toString() || "",
         priceMax: result.priceMax?.toString() || "",
-        image: result.image || "",
+        image: result.image || result.thumbnail || "",
+        thumbnail: result.thumbnail || "",
+        brand: result.brand || "",
         rating: result.rating?.toString() || "0",
         sold: result.sold?.toString() || "0",
         description: result.description || "",
@@ -308,6 +311,20 @@ export function AddProductModal({ onClose, onSuccess }: AddProductModalProps) {
                   className='w-full h-8 bg-slate-800 border border-slate-700 rounded px-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-slate-600'
                 />
               </div>
+
+              {formData.brand && (
+                <div className='col-span-2'>
+                  <label className='block text-xs font-semibold text-slate-400 mb-1'>
+                    Thương hiệu
+                  </label>
+                  <input
+                    type='text'
+                    value={formData.brand}
+                    readOnly
+                    className='w-full h-8 bg-slate-800 border border-slate-700 rounded px-2 text-sm text-slate-300'
+                  />
+                </div>
+              )}
 
               {/* Giá tối thiểu */}
               <div>
