@@ -207,3 +207,8 @@ body {
 .ant-btn-text {
   @apply text-gray-400 hover:text-gray-300;
 }
+
+
+:where(.css-dev-only-do-not-override-1u3uosp).ant-btn-color-primary {
+  @apply shadow-none;
+}

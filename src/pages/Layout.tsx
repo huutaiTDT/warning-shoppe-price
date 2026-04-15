@@ -1,5 +1,6 @@
 /** @format */
 
+import { authAPI } from "@/services/api";
 import {
   DashboardOutlined,
   HistoryOutlined,
@@ -7,14 +8,13 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   SettingOutlined,
-  ShoppingOutlined,
   ShopOutlined,
+  ShoppingOutlined,
 } from "@ant-design/icons";
 import { Avatar, Button, Dropdown, Layout, Menu, message } from "antd";
 import { Package } from "lucide-react";
 import { useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { authAPI } from "@/services/api";
 
 const { Header, Sider, Content } = Layout;
 
@@ -39,27 +39,27 @@ export default function DashboardLayout() {
     {
       key: "/dashboard",
       icon: <DashboardOutlined />,
-      label: <Link to="/dashboard">Dashboard</Link>,
+      label: <Link to='/dashboard'>Dashboard</Link>,
     },
     {
       key: "/dashboard/shops",
       icon: <ShopOutlined />,
-      label: <Link to="/dashboard/shops">Cửa hàng</Link>,
+      label: <Link to='/dashboard/shops'>Cửa hàng</Link>,
     },
     {
       key: "/dashboard/products",
       icon: <ShoppingOutlined />,
-      label: <Link to="/dashboard/products">Sản phẩm</Link>,
+      label: <Link to='/dashboard/products'>Sản phẩm</Link>,
     },
     {
       key: "/dashboard/crawl-history",
       icon: <HistoryOutlined />,
-      label: <Link to="/dashboard/crawl-history">Lịch sử quét</Link>,
+      label: <Link to='/dashboard/crawl-history'>Lịch sử quét</Link>,
     },
     {
       key: "/dashboard/settings",
       icon: <SettingOutlined />,
-      label: <Link to="/dashboard/settings">Cài đặt</Link>,
+      label: <Link to='/dashboard/settings'>Cài đặt</Link>,
     },
   ];
 
@@ -75,47 +75,45 @@ export default function DashboardLayout() {
   };
 
   return (
-    <Layout className="h-screen">
-      <Sider
-        trigger={null}
-        collapsible
-        collapsed={collapsed}
-        width={250}>
-        <div className="p-6 flex items-center gap-3 mb-8">
-          <Package size={28} className="text-emerald-500" />
-          {!collapsed && (
-            <span className="font-bold text-white text-lg">Quản lý</span>
-          )}
+    <Layout className='h-screen'>
+      <Sider trigger={null} collapsible collapsed={collapsed} width={250}>
+        <div className='h-16 flex items-center justify-center bg-emerald-600/20 border-b border-emerald-600/30'>
+          <div className='flex justify-center items-center'>
+            <Package className='text-emerald-500' />
+            {!collapsed && (
+              <span className='font-bold text-white text-lg'>Quản lý</span>
+            )}
+          </div>
         </div>
 
         <Menu
-          theme="dark"
-          mode="inline"
+          theme='dark'
+          mode='inline'
           selectedKeys={[location.pathname]}
           items={menuItems}
         />
       </Sider>
 
       <Layout>
-        <Header className="flex items-center justify-between px-6">
+        <Header className='flex items-center justify-between px-6'>
           <Button
-            type="text"
+            type='text'
             icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             onClick={() => setCollapsed(!collapsed)}
-            className="text-white"
+            className='text-white'
           />
 
           <Dropdown menu={userMenu}>
-            <div className="flex items-center gap-3 cursor-pointer hover:opacity-80">
-              <Avatar size="large" style={{ backgroundColor: "#10b981" }}>
+            <div className='flex items-center gap-3 cursor-pointer hover:opacity-80'>
+              <Avatar size='large' style={{ backgroundColor: "#10b981" }}>
                 A
               </Avatar>
-              <span className="text-white">Admin</span>
+              <span className='text-white'>Admin</span>
             </div>
           </Dropdown>
         </Header>
 
-        <Content className="p-6 overflow-auto">
+        <Content className='p-6 overflow-auto'>
           <Outlet />
         </Content>
       </Layout>

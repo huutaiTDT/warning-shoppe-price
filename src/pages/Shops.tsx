@@ -1,6 +1,5 @@
 /** @format */
 
-
 import { shopsAPI } from "@/services/api";
 import { Button, Input, Popconfirm, Space, Table, message } from "antd";
 import { Edit, Plus, Play, RotateCcw, Trash2 } from "lucide-react";
@@ -67,6 +66,7 @@ export default function ShopsPage() {
       dataIndex: "id",
       key: "id",
       width: 100,
+      fixed: "left" as const,
       render: (id: string) => <span className="text-xs text-gray-500">{id.slice(0, 8)}...</span>,
     },
     {
@@ -108,6 +108,7 @@ export default function ShopsPage() {
       title: "Actions",
       key: "actions",
       width: 180,
+      fixed: "right" as const,
       render: (_: any, record: any) => (
         <Space size="small">
           <Button
@@ -139,7 +140,7 @@ export default function ShopsPage() {
 
   return (
     <div className="space-y-4 h-full flex flex-col">
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-shrink-0">
         <Input
           placeholder="Tìm kiếm cửa hàng..."
           value={search}
@@ -158,24 +159,45 @@ export default function ShopsPage() {
         </Link>
       </div>
 
-      <div className="flex-1 overflow-auto">
-        <Table
-          columns={columns}
-          dataSource={shops}
-          loading={loading}
-          rowKey="id"
-          pagination={{
-            total,
-            pageSize: pagination.pageSize,
-            current: pagination.page,
-            onChange: (page, pageSize) => {
-              setPagination({ page, pageSize });
-            },
-            size: "small",
-          }}
-          scroll={{ x: 1200 }}
-          size="small"
-        />
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-auto">
+          <Table
+            columns={columns}
+            dataSource={shops}
+            loading={loading}
+            rowKey="id"
+            pagination={false}
+            scroll={{ x: 1200, y: "100%" }}
+            size="small"
+          />
+        </div>
+
+        <div className="flex-shrink-0 bg-gray-900 border-t border-gray-800 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-400">
+              Hiển thị {shops.length} / {total} mục
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="small"
+                disabled={pagination.page === 1}
+                onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
+              >
+                Trước
+              </Button>
+              <span className="text-xs text-gray-400">
+                Trang {pagination.page}
+              </span>
+              <Button
+                size="small"
+                disabled={pagination.page * pagination.pageSize >= total}
+                onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
+              >
+                Sau
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

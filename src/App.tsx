@@ -77,6 +77,11 @@ export default function App() {
       controlWidth: 40,
       controlHeightLG: 40,
       controlHeightSM: 32,
+      controlHeightXS: 24,
+      fontSizeLG: 14,
+      fontSizeSM: 12,
+      fontSizeXS: 10,
+      lineHeight: 1.5,
     },
     algorithm: undefined, // Will add dark theme
   };

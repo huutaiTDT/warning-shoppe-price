@@ -1,7 +1,7 @@
 /** @format */
 
 import { crawlHistoryAPI } from "@/services/api";
-import { Empty, Table, message } from "antd";
+import { Button, Empty, Table, message } from "antd";
 import { useEffect, useState } from "react";
 
 export default function CrawlHistoryPage() {
@@ -33,6 +33,7 @@ export default function CrawlHistoryPage() {
       dataIndex: "id",
       key: "id",
       width: 80,
+      fixed: "left" as const,
       render: (id: string) => <span className="text-xs text-gray-500">{id.slice(0, 8)}...</span>,
     },
     {
@@ -103,25 +104,54 @@ export default function CrawlHistoryPage() {
       {history.length === 0 && !loading ? (
         <Empty description="Không có dữ liệu" />
       ) : (
-        <div className="flex-1 overflow-auto">
-          <Table
-            columns={columns}
-            dataSource={history}
-            loading={loading}
-            rowKey="id"
-            pagination={{
-              total,
-              pageSize: pagination.pageSize,
-              current: pagination.page,
-              onChange: (page, pageSize) => {
-                setPagination({ page, pageSize });
-              },
-              size: "small",
-            }}
-            scroll={{ x: 900 }}
-            size="small"
-          />
-        </div>
+        <>
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-auto">
+              <Table
+                columns={columns}
+                dataSource={history}
+                loading={loading}
+                rowKey="id"
+                pagination={false}
+                scroll={{ x: 900, y: "100%" }}
+                size="small"
+              />
+            </div>
+
+            <div className="flex-shrink-0 bg-gray-900 border-t border-gray-800 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-400">
+                  Hiển thị {history.length} / {total} mục
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="small"
+                    disabled={pagination.page === 1}
+                    onClick={() =>
+                      setPagination({ ...pagination, page: pagination.page - 1 })
+                    }
+                  >
+                    Trước
+                  </Button>
+                  <span className="text-xs text-gray-400">
+                    Trang {pagination.page}
+                  </span>
+                  <Button
+                    size="small"
+                    disabled={
+                      pagination.page * pagination.pageSize >= total
+                    }
+                    onClick={() =>
+                      setPagination({ ...pagination, page: pagination.page + 1 })
+                    }
+                  >
+                    Sau
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
