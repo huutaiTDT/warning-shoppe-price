@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+  color: #e5e7eb;
+  background: #111827;
+}
+
+/* Ant Design Dark Theme */
+.ant-btn-primary {
+  @apply bg-emerald-600 hover:bg-emerald-700 border-emerald-600 hover:border-emerald-700;
+}
+
+.ant-card {
+  @apply bg-gray-900 border-gray-800;
+}
+
+.ant-input,
+.ant-input-number,
+.ant-select-selector {
+  @apply bg-gray-800 border-gray-700 text-white;
+}
+
+.ant-select-item {
+  @apply bg-gray-800 text-white;
+}
+
+.ant-table {
+  @apply bg-gray-900 text-gray-100;
+}
+
+.ant-table-thead > tr > th {
+  @apply bg-gray-800 text-gray-300 font-semibold;
+}
+
+.ant-table-tbody > tr {
+  @apply hover:bg-gray-800;
+}
+
+.ant-modal-content {
+  @apply bg-gray-900 border-gray-800;
+}
+
+.ant-modal-header {
+  @apply bg-gray-900 border-gray-800;
+}
+
+.ant-modal-title {
+  @apply text-white;
+}
+
+.ant-form-item-label > label {
+  @apply text-gray-300;
+}
+
+.ant-input::placeholder {
+  @apply text-gray-500;
+}
+
+.ant-select-focused .ant-select-selector {
+  @apply border-emerald-600;
+}
+
+.ant-input:focus {
+  @apply border-emerald-600;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-600 rounded hover:bg-gray-500;
+}
