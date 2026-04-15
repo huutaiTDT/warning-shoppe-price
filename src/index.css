@@ -209,6 +209,10 @@ body {
 }
 
 
+:where(.css-dev-only-do-not-override-1u3uosp).ant-btn-color-dangerous,
 :where(.css-dev-only-do-not-override-1u3uosp).ant-btn-color-primary {
   @apply shadow-none;
+}
+main.ant-layout-content.p-6.overflow-auto.css-dev-only-do-not-override-1u3uosp{
+  @apply bg-[#232D3B];
 }

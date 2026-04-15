@@ -2,7 +2,7 @@
 
 import { shopsAPI } from "@/services/api";
 import { Button, Input, Popconfirm, Space, Table, message } from "antd";
-import { Edit, Plus, Play, RotateCcw, Trash2 } from "lucide-react";
+import { Edit, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -62,14 +62,6 @@ export default function ShopsPage() {
 
   const columns = [
     {
-      title: "ID",
-      dataIndex: "id",
-      key: "id",
-      width: 100,
-      fixed: "left" as const,
-      render: (id: string) => <span className="text-xs text-gray-500">{id.slice(0, 8)}...</span>,
-    },
-    {
       title: "Tên cửa hàng",
       dataIndex: "name",
       key: "name",
@@ -81,7 +73,11 @@ export default function ShopsPage() {
       key: "url",
       width: 250,
       render: (url: string) => (
-        <a href={url} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400 text-xs truncate">
+        <a
+          href={url}
+          target='_blank'
+          rel='noopener noreferrer'
+          className='text-emerald-500 hover:text-emerald-400 text-xs truncate'>
           {url}
         </a>
       ),
@@ -99,7 +95,7 @@ export default function ShopsPage() {
       key: "createdAt",
       width: 150,
       render: (date: string) => (
-        <span className="text-xs text-gray-400">
+        <span className='text-xs text-gray-400'>
           {new Date(date).toLocaleDateString("vi-VN")}
         </span>
       ),
@@ -110,28 +106,27 @@ export default function ShopsPage() {
       width: 180,
       fixed: "right" as const,
       render: (_: any, record: any) => (
-        <Space size="small">
+        <Space size='large'>
           <Button
-            type="primary"
-            size="small"
+            type='primary'
+            size='large'
             icon={<Play size={14} />}
             onClick={() => handleCrawl(record.id)}
           />
           <Button
-            size="small"
+            size='large'
             icon={<RotateCcw size={14} />}
             onClick={() => handleResetStatus(record.id)}
           />
           <Link to={`/dashboard/shops/${record.id}`}>
-            <Button size="small" icon={<Edit size={14} />} />
+            <Button size='large' icon={<Edit size={14} />} />
           </Link>
           <Popconfirm
-            title="Xóa?"
+            title='Xóa?'
             onConfirm={() => handleDelete(record.id)}
-            okText="Có"
-            cancelText="Không"
-          >
-            <Button danger size="small" icon={<Trash2 size={14} />} />
+            okText='Có'
+            cancelText='Không'>
+            <Button danger size='large' icon={<Trash2 size={14} />} />
           </Popconfirm>
         </Space>
       ),
@@ -139,60 +134,62 @@ export default function ShopsPage() {
   ];
 
   return (
-    <div className="space-y-4 h-full flex flex-col">
-      <div className="flex gap-3 flex-shrink-0">
+    <div className='space-y-4 h-full flex flex-col'>
+      <div className='flex justify-start items-center flex-wrap'>
         <Input
-          placeholder="Tìm kiếm cửa hàng..."
+          placeholder='Tìm kiếm cửa hàng...'
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 max-w-sm text-sm"
+          className='flex-1 max-w-sm text-sm'
           style={{
             backgroundColor: "rgb(31 41 55)",
             border: "none",
             color: "white",
           }}
         />
-        <Link to="/dashboard/shops/new">
-          <Button type="primary" icon={<Plus size={16} />} size="small">
+        <Link to='/dashboard/shops/new'>
+          <Button type='primary' icon={<Plus />}>
             Thêm
           </Button>
         </Link>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-auto">
+      <div className='flex-1 overflow-hidden flex flex-col'>
+        <div className='flex-1 overflow-auto'>
           <Table
             columns={columns}
             dataSource={shops}
             loading={loading}
-            rowKey="id"
+            rowKey='id'
             pagination={false}
             scroll={{ x: 1200, y: "100%" }}
-            size="small"
+            size='large'
           />
         </div>
 
-        <div className="flex-shrink-0 bg-gray-900 border-t border-gray-800 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400">
+        <div className='flex-shrink-0 bg-gray-900 border-t border-gray-800 px-4 py-3'>
+          <div className='flex items-center justify-between'>
+            <span className='text-xs text-gray-400'>
               Hiển thị {shops.length} / {total} mục
             </span>
-            <div className="flex items-center gap-2">
+            <div className='flex items-center gap-2'>
               <Button
-                size="small"
+                size='large'
                 disabled={pagination.page === 1}
-                onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
-              >
+                onClick={() =>
+                  setPagination({ ...pagination, page: pagination.page - 1 })
+                }>
                 Trước
               </Button>
-              <span className="text-xs text-gray-400">
+              <span className='text-xs text-gray-400'>
                 Trang {pagination.page}
               </span>
               <Button
-                size="small"
+                size='large'
                 disabled={pagination.page * pagination.pageSize >= total}
-                onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
-              >
+                onClick={() =>
+                  setPagination({ ...pagination, page: pagination.page + 1 })
+                }>
                 Sau
               </Button>
             </div>

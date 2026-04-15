@@ -3,7 +3,13 @@
 import { formatPrice } from "@/lib/utils";
 import { productsAPI } from "@/services/api";
 import { Button, Input, Popconfirm, Space, Table, Upload, message } from "antd";
-import { Download, Edit, Plus, Trash2, Upload as UploadIcon } from "lucide-react";
+import {
+  Download,
+  Edit,
+  Plus,
+  Trash2,
+  Upload as UploadIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function ProductsPage() {
@@ -70,19 +76,11 @@ export default function ProductsPage() {
 
   const columns = [
     {
-      title: "ID",
-      dataIndex: "id",
-      key: "id",
-      width: 80,
-      fixed: "left" as const,
-      render: (id: string) => <span className="text-xs text-gray-500">{id.slice(0, 8)}...</span>,
-    },
-    {
       title: "Tên sản phẩm",
       dataIndex: "name",
       key: "name",
       width: 250,
-      render: (text: string) => <span className="truncate">{text}</span>,
+      render: (text: string) => <span className='truncate'>{text}</span>,
     },
     {
       title: "Giá hiện tại",
@@ -90,7 +88,9 @@ export default function ProductsPage() {
       key: "priceMin",
       width: 120,
       render: (price: number) => (
-        <span className="text-emerald-500 font-semibold">{formatPrice(price)}</span>
+        <span className='text-emerald-500 font-semibold'>
+          {formatPrice(price)}
+        </span>
       ),
     },
     {
@@ -99,7 +99,9 @@ export default function ProductsPage() {
       key: "priceOriginal",
       width: 120,
       render: (price: number) => (
-        <span className="text-gray-400 line-through text-sm">{formatPrice(price)}</span>
+        <span className='text-gray-400 line-through text-sm'>
+          {formatPrice(price)}
+        </span>
       ),
     },
     {
@@ -108,9 +110,9 @@ export default function ProductsPage() {
       key: "discount",
       width: 70,
       render: (discount: number) =>
-        discount > 0 ? (
-          <span className="text-red-500 font-semibold">-{discount}%</span>
-        ) : null,
+        discount > 0 ?
+          <span className='text-red-500 font-semibold'>-{discount}%</span>
+        : null,
     },
     {
       title: "Rating",
@@ -118,7 +120,7 @@ export default function ProductsPage() {
       key: "rating",
       width: 80,
       render: (rating: number) => (
-        <span className="text-yellow-500">★ {rating?.toFixed(1) || 0}</span>
+        <span className='text-yellow-500'>★ {rating?.toFixed(1) || 0}</span>
       ),
     },
     {
@@ -127,15 +129,14 @@ export default function ProductsPage() {
       width: 100,
       fixed: "right" as const,
       render: (_: any, record: any) => (
-        <Space size="small">
-          <Button size="small" icon={<Edit size={14} />} />
+        <Space size='large'>
+          <Button size='large' icon={<Edit size={14} />} />
           <Popconfirm
-            title="Xóa?"
+            title='Xóa?'
             onConfirm={() => handleDelete(record.id)}
-            okText="Có"
-            cancelText="Không"
-          >
-            <Button danger size="small" icon={<Trash2 size={14} />} />
+            okText='Có'
+            cancelText='Không'>
+            <Button danger size='large' icon={<Trash2 size={14} />} />
           </Popconfirm>
         </Space>
       ),
@@ -143,70 +144,74 @@ export default function ProductsPage() {
   ];
 
   return (
-    <div className="space-y-4 h-full flex flex-col">
-      <div className="flex gap-3 flex-shrink-0 flex-wrap">
+    <div className='space-y-4 h-full flex flex-col'>
+      <div className='flex flex-shrink-0 flex-wrap'>
         <Input
-          placeholder="Tìm kiếm sản phẩm..."
+          placeholder='Tìm kiếm sản phẩm...'
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 max-w-sm text-sm"
+          className='flex-1 max-w-sm text-sm'
           style={{
             backgroundColor: "rgb(31 41 55)",
             border: "none",
             color: "white",
           }}
         />
-        <Button type="primary" icon={<Plus size={16} />} size="small">
+        <Button type='primary' icon={<Plus size={16} />} size='large'>
           Thêm
         </Button>
-        <Button icon={<Download size={16} />} size="small" onClick={handleExport}>
+        <Button
+          icon={<Download size={16} />}
+          size='large'
+          onClick={handleExport}>
           Xuất
         </Button>
         <Upload
           beforeUpload={handleImport}
-          accept=".xlsx,.xls"
-          showUploadList={false}
-        >
-          <Button icon={<UploadIcon size={16} />} size="small">
+          accept='.xlsx,.xls'
+          showUploadList={false}>
+          <Button icon={<UploadIcon size={16} />} size='large'>
             Nhập
           </Button>
         </Upload>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-auto">
+      <div className='flex-1 overflow-hidden flex flex-col'>
+        <div className='flex-1 overflow-auto'>
           <Table
             columns={columns}
             dataSource={products}
             loading={loading}
-            rowKey="id"
+            rowKey='id'
             pagination={false}
             scroll={{ x: 1400, y: "100%" }}
-            size="small"
+            size='large'
           />
         </div>
 
-        <div className="flex-shrink-0 bg-gray-900 border-t border-gray-800 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400">
+        <div className='flex-shrink-0 bg-gray-900 border-t border-gray-800 px-4 py-3'>
+          <div className='flex items-center justify-between'>
+            <span className='text-xs text-gray-400'>
               Hiển thị {products.length} / {total} mục
             </span>
-            <div className="flex items-center gap-2">
+            <div className='flex items-center gap-2'>
               <Button
-                size="small"
+                size='large'
                 disabled={pagination.page === 1}
-                onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
-              >
+                onClick={() =>
+                  setPagination({ ...pagination, page: pagination.page - 1 })
+                }>
                 Trước
               </Button>
-              <span className="text-xs text-gray-400">
+              <span className='text-xs text-gray-400'>
                 Trang {pagination.page}
               </span>
               <Button
-                size="small"
+                size='large'
                 disabled={pagination.page * pagination.pageSize >= total}
-                onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
-              >
+                onClick={() =>
+                  setPagination({ ...pagination, page: pagination.page + 1 })
+                }>
                 Sau
               </Button>
             </div>

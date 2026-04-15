@@ -95,10 +95,18 @@ export default function DashboardLayout() {
       </Sider>
 
       <Layout>
-        <Header className='flex items-center justify-between px-6'>
+        <Header
+          style={{
+            height: "4rem ",
+          }}
+          className=' bg-emerald-600/20 border-b border-emerald-600/30 flex items-center justify-between px-2'>
           <Button
             type='text'
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            icon={
+              collapsed ?
+                <MenuUnfoldOutlined className='h-8 w-8' />
+              : <MenuFoldOutlined className='h-8 w-8' />
+            }
             onClick={() => setCollapsed(!collapsed)}
             className='text-white'
           />

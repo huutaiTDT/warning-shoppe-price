@@ -29,14 +29,6 @@ export default function CrawlHistoryPage() {
 
   const columns = [
     {
-      title: "ID",
-      dataIndex: "id",
-      key: "id",
-      width: 80,
-      fixed: "left" as const,
-      render: (id: string) => <span className="text-xs text-gray-500">{id.slice(0, 8)}...</span>,
-    },
-    {
       title: "Cửa hàng",
       dataIndex: "shopName",
       key: "shopName",
@@ -57,18 +49,15 @@ export default function CrawlHistoryPage() {
       render: (status: string) => (
         <span
           className={`text-xs font-semibold px-2 py-1 rounded ${
-            status === "completed"
-              ? "text-emerald-500"
-              : status === "failed"
-                ? "text-red-500"
-                : "text-blue-500"
-          }`}
-        >
-          {status === "completed"
-            ? "✓ Hoàn thành"
-            : status === "failed"
-              ? "✗ Lỗi"
-              : "⏳ Đang quét"}
+            status === "completed" ? "text-emerald-500"
+            : status === "failed" ? "text-red-500"
+            : "text-blue-500"
+          }`}>
+          {status === "completed" ?
+            "✓ Hoàn thành"
+          : status === "failed" ?
+            "✗ Lỗi"
+          : "⏳ Đang quét"}
         </span>
       ),
     },
@@ -78,7 +67,7 @@ export default function CrawlHistoryPage() {
       key: "createdAt",
       width: 180,
       render: (date: string) => (
-        <span className="text-xs text-gray-400">
+        <span className='text-xs text-gray-400'>
           {new Date(date).toLocaleString("vi-VN")}
         </span>
       ),
@@ -89,62 +78,61 @@ export default function CrawlHistoryPage() {
       key: "completedAt",
       width: 180,
       render: (date: string) =>
-        date ? (
-          <span className="text-xs text-gray-400">
+        date ?
+          <span className='text-xs text-gray-400'>
             {new Date(date).toLocaleString("vi-VN")}
           </span>
-        ) : (
-          <span className="text-gray-600 text-xs">-</span>
-        ),
+        : <span className='text-gray-600 text-xs'>-</span>,
     },
   ];
 
   return (
-    <div className="h-full flex flex-col">
-      {history.length === 0 && !loading ? (
-        <Empty description="Không có dữ liệu" />
-      ) : (
-        <>
-          <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-auto">
+    <div className='h-full flex flex-col'>
+      {history.length === 0 && !loading ?
+        <Empty description='Không có dữ liệu' />
+      : <>
+          <div className='flex-1 overflow-hidden flex flex-col'>
+            <div className='flex-1 overflow-auto'>
               <Table
                 columns={columns}
                 dataSource={history}
                 loading={loading}
-                rowKey="id"
+                rowKey='id'
                 pagination={false}
                 scroll={{ x: 900, y: "100%" }}
-                size="small"
+                size='large'
               />
             </div>
 
-            <div className="flex-shrink-0 bg-gray-900 border-t border-gray-800 px-4 py-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-400">
+            <div className='flex-shrink-0 bg-gray-900 border-t border-gray-800 px-4 py-3'>
+              <div className='flex items-center justify-between'>
+                <span className='text-xs text-gray-400'>
                   Hiển thị {history.length} / {total} mục
                 </span>
-                <div className="flex items-center gap-2">
+                <div className='flex items-center gap-2'>
                   <Button
-                    size="small"
+                    size='large'
                     disabled={pagination.page === 1}
                     onClick={() =>
-                      setPagination({ ...pagination, page: pagination.page - 1 })
-                    }
-                  >
+                      setPagination({
+                        ...pagination,
+                        page: pagination.page - 1,
+                      })
+                    }>
                     Trước
                   </Button>
-                  <span className="text-xs text-gray-400">
+                  <span className='text-xs text-gray-400'>
                     Trang {pagination.page}
                   </span>
                   <Button
-                    size="small"
-                    disabled={
-                      pagination.page * pagination.pageSize >= total
-                    }
+                    size='large'
+                    disabled={pagination.page * pagination.pageSize >= total}
                     onClick={() =>
-                      setPagination({ ...pagination, page: pagination.page + 1 })
-                    }
-                  >
+                      setPagination({
+                        ...pagination,
+                        page: pagination.page + 1,
+                      })
+                    }>
                     Sau
                   </Button>
                 </div>
@@ -152,7 +140,7 @@ export default function CrawlHistoryPage() {
             </div>
           </div>
         </>
-      )}
+      }
     </div>
   );
 }

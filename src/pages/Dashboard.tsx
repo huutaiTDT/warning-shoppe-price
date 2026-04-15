@@ -107,14 +107,14 @@ export default function DashboardPage() {
     <div className='space-y-6'>
       <Row>
         <Col xs={24} sm={12} lg={8}>
-          <Card loading={loadingStats} size='small'>
+          <Card loading={loadingStats} size='large'>
             <Statistic
               title='Tổng cửa hàng'
               value={totalShops}
               prefix={<Store size={18} className='text-emerald-500' />}
             />
             <Link to='/dashboard/shops'>
-              <Button type='text' size='small' className='w-full mt-3'>
+              <Button type='text' size='large' className='w-full mt-3'>
                 Xem tất cả <ChevronRight size={14} />
               </Button>
             </Link>
@@ -122,14 +122,14 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} sm={12} lg={8}>
-          <Card loading={loadingStats} size='small'>
+          <Card loading={loadingStats} size='large'>
             <Statistic
               title='Tổng sản phẩm'
               value={totalProducts}
               prefix={<Package size={18} className='text-blue-500' />}
             />
             <Link to='/dashboard/products'>
-              <Button type='text' size='small' className='w-full mt-3'>
+              <Button type='text' size='large' className='w-full mt-3'>
                 Xem tất cả <ChevronRight size={14} />
               </Button>
             </Link>
@@ -137,14 +137,14 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} sm={12} lg={8}>
-          <Card loading={loadingStats} size='small'>
+          <Card loading={loadingStats} size='large'>
             <Statistic
               title='Lịch sử quét'
               value={totalProducts}
               prefix={<BarChart3 size={18} className='text-purple-500' />}
             />
             <Link to='/dashboard/crawl-history'>
-              <Button type='text' size='small' className='w-full mt-3'>
+              <Button type='text' size='large' className='w-full mt-3'>
                 Xem tất cả <ChevronRight size={14} />
               </Button>
             </Link>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
             rowKey='id'
             pagination={false}
             scroll={{ x: 600 }}
-            size='small'
+            size='large'
           />
         }
 
