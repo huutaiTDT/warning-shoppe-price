@@ -36,7 +36,7 @@ export default function ProductsPage() {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [minRating, setMinRating] = useState("");
-  const [overOriginal, setOverOriginal] = useState(false);
+  const [underOriginal, setUnderOriginal] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -49,7 +49,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, shop, minPrice, maxPrice, minRating, overOriginal]);
+  }, [debouncedSearch, shop, minPrice, maxPrice, minRating, underOriginal]);
 
   // ================= FETCH =================
   const fetchProducts = useCallback(async () => {
@@ -62,7 +62,7 @@ export default function ProductsPage() {
         ...(minPrice && { minPrice }),
         ...(maxPrice && { maxPrice }),
         ...(minRating && { minRating }),
-        ...(overOriginal && { overOriginal: "true" }),
+        ...(underOriginal && { underOriginal: "true" }),
       });
 
       const res = await fetch(`/api/products?${params}`);
@@ -74,7 +74,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, shop, minPrice, maxPrice, minRating, overOriginal]);
+  }, [page, debouncedSearch, shop, minPrice, maxPrice, minRating, underOriginal]);
 
   const fetchShops = useCallback(async () => {
     const res = await fetch("/api/shops?page=1&limit=1000");
@@ -195,8 +195,8 @@ export default function ProductsPage() {
           />
 
           <Button
-            variant={overOriginal ? "default" : "outline"}
-            onClick={() => setOverOriginal(!overOriginal)}
+            variant={underOriginal ? "default" : "outline"}
+            onClick={() => setUnderOriginal(!underOriginal)}
             disabled={loading}
             size='sm'
             className='text-xs h-8 bg-slate-800 border-slate-700 text-slate-300 hover:text-slate-100'>
@@ -344,7 +344,7 @@ export default function ProductsPage() {
 // ================= MODAL =================
 function ProductDetailModal({ product, onClose }: any) {
   const productImage = product.thumbnail || product.image;
-  const productBrand = product.brand || product.brand_name || product.category;
+  const productBrand = product.brand || product.brand_name;
 
   return (
     <div

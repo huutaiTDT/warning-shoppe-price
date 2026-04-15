@@ -92,7 +92,7 @@ export function ProductsGrid({
 }: ProductsGridProps) {
   const getProductImage = (product: any) => product.thumbnail || product.image;
   const getProductBrand = (product: any) =>
-    product.brand || product.brand_name || product.category || null;
+    product.brand || product.brand_name || null;
 
   // ================= LOADING =================
   if (loading) {
