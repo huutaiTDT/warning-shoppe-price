@@ -11,9 +11,11 @@ export interface ShopeeProductInfo {
   priceMin: number;
   priceMax: number;
   image?: string;
+  thumbnail?: string;
   gallery?: string[];
   rating?: number;
   sold?: number;
+  brand?: string;
   description?: string;
   aff_link: string;
 }
@@ -62,9 +64,11 @@ export async function fetchShopeeProductInfo(
       priceMin: product.priceMin || 0,
       priceMax: product.priceMax || 0,
       image: product.image || "",
+      thumbnail: product.thumbnail || product.image || "",
       gallery: product.gallery || [],
       rating: product.rating || 0,
       sold: product.sold || 0,
+      brand: product.brand || product.brand_name || "",
       description: product.description || "",
       aff_link: product.url || url,
     };

@@ -33,6 +33,9 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [shop, setShop] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [minRating, setMinRating] = useState("");
   const [overOriginal, setOverOriginal] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -44,6 +47,10 @@ export default function ProductsPage() {
     return () => clearTimeout(t);
   }, [search]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, shop, minPrice, maxPrice, minRating, overOriginal]);
+
   // ================= FETCH =================
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -52,6 +59,9 @@ export default function ProductsPage() {
         page: page.toString(),
         ...(debouncedSearch && { search: debouncedSearch }),
         ...(shop && { shop }),
+        ...(minPrice && { minPrice }),
+        ...(maxPrice && { maxPrice }),
+        ...(minRating && { minRating }),
         ...(overOriginal && { overOriginal: "true" }),
       });
 
@@ -64,7 +74,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, shop, overOriginal]);
+  }, [page, debouncedSearch, shop, minPrice, maxPrice, minRating, overOriginal]);
 
   const fetchShops = useCallback(async () => {
     const res = await fetch("/api/shops?page=1&limit=1000");
@@ -156,6 +166,33 @@ export default function ProductsPage() {
               </option>
             ))}
           </select>
+
+          <Input
+            type='number'
+            value={minPrice}
+            onChange={(e) => setMinPrice(e.target.value)}
+            placeholder='Giá từ'
+            className='h-8 w-24 text-xs bg-slate-800 border-slate-700 text-slate-200 placeholder-slate-500'
+          />
+
+          <Input
+            type='number'
+            value={maxPrice}
+            onChange={(e) => setMaxPrice(e.target.value)}
+            placeholder='Giá đến'
+            className='h-8 w-24 text-xs bg-slate-800 border-slate-700 text-slate-200 placeholder-slate-500'
+          />
+
+          <Input
+            type='number'
+            min='0'
+            max='5'
+            step='0.1'
+            value={minRating}
+            onChange={(e) => setMinRating(e.target.value)}
+            placeholder='Rating từ'
+            className='h-8 w-24 text-xs bg-slate-800 border-slate-700 text-slate-200 placeholder-slate-500'
+          />
 
           <Button
             variant={overOriginal ? "default" : "outline"}
@@ -306,6 +343,9 @@ export default function ProductsPage() {
 
 // ================= MODAL =================
 function ProductDetailModal({ product, onClose }: any) {
+  const productImage = product.thumbnail || product.image;
+  const productBrand = product.brand || product.brand_name || product.category;
+
   return (
     <div
       className='fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50'
@@ -325,9 +365,9 @@ function ProductDetailModal({ product, onClose }: any) {
         </div>
 
         <div className='grid md:grid-cols-2 gap-4'>
-          {product.image && (
+          {productImage && (
             <img
-              src={product.image}
+              src={productImage}
               loading='lazy'
               className='rounded-lg object-cover w-full h-60 bg-slate-800'
             />
@@ -341,16 +381,22 @@ function ProductDetailModal({ product, onClose }: any) {
               </p>
             </div>
 
-            <div className='flex gap-4'>
-              <div>
-                <p className='text-slate-500 text-xs mb-1'>⭐ Đánh giá</p>
-                <p className='font-semibold text-yellow-400'>
-                  {product.rating.toFixed(1)} ({product.sold} đã bán)
-                </p>
-              </div>
-              {product.shopName && (
+              <div className='flex gap-4'>
                 <div>
-                  <p className='text-slate-500 text-xs mb-1'>🏪 Cửa hàng</p>
+                  <p className='text-slate-500 text-xs mb-1'>⭐ Đánh giá</p>
+                  <p className='font-semibold text-yellow-400'>
+                    {product.rating.toFixed(1)} ({product.sold} đã bán)
+                  </p>
+                </div>
+                {productBrand && (
+                  <div>
+                    <p className='text-slate-500 text-xs mb-1'>🏷️ Thương hiệu</p>
+                    <p className='font-semibold'>{productBrand}</p>
+                  </div>
+                )}
+                {product.shopName && (
+                  <div>
+                    <p className='text-slate-500 text-xs mb-1'>🏪 Cửa hàng</p>
                   <p className='font-semibold'>{product.shopName}</p>
                 </div>
               )}

@@ -90,6 +90,10 @@ export function ProductsGrid({
   viewMode,
   onSelectProduct,
 }: ProductsGridProps) {
+  const getProductImage = (product: any) => product.thumbnail || product.image;
+  const getProductBrand = (product: any) =>
+    product.brand || product.brand_name || product.category || null;
+
   // ================= LOADING =================
   if (loading) {
     return (
@@ -127,6 +131,8 @@ export function ProductsGrid({
         {products?.map((product) => {
           const metrics = getPriceMetrics(product);
           const stateUI = getStateUI(metrics.state);
+          const productImage = getProductImage(product);
+          const productBrand = getProductBrand(product);
 
           return (
             <Card
@@ -135,9 +141,9 @@ export function ProductsGrid({
               onClick={() => onSelectProduct(product)}>
               <div className='flex gap-3'>
                 <div className='h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-800'>
-                  {product.image && (
+                  {productImage && (
                     <img
-                      src={product.image}
+                      src={productImage}
                       alt={product.name}
                       className='h-full w-full object-cover transition-transform duration-300 group-hover:scale-105'
                       loading='lazy'
@@ -154,6 +160,11 @@ export function ProductsGrid({
                     <span className='rounded-full bg-amber-500/20 px-2 py-0.5 text-amber-400'>
                       ⭐ {product.rating?.toFixed(1) || 0}
                     </span>
+                    {productBrand && (
+                      <span className='rounded-full bg-cyan-500/20 px-2 py-0.5 text-cyan-300'>
+                        {productBrand}
+                      </span>
+                    )}
                     {product.shopName && (
                       <span className='truncate'>Shop: {product.shopName}</span>
                     )}
@@ -221,16 +232,18 @@ export function ProductsGrid({
       {products?.map((product) => {
         const metrics = getPriceMetrics(product);
         const stateUI = getStateUI(metrics.state);
+        const productImage = getProductImage(product);
+        const productBrand = getProductBrand(product);
 
         return (
           <Card
             key={product.id}
             className='group cursor-pointer overflow-hidden rounded-lg border border-slate-800 bg-slate-900 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl'
             onClick={() => onSelectProduct(product)}>
-            {product.image && (
+            {productImage && (
               <div className='relative w-full aspect-square overflow-hidden bg-slate-800'>
                 <img
-                  src={product.image}
+                  src={productImage}
                   alt={product.name}
                   className='h-full w-full object-cover transition-transform duration-300 group-hover:scale-105'
                   loading='lazy'
@@ -286,6 +299,11 @@ export function ProductsGrid({
                   {product.shopName || "Unknown"}
                 </span>
               </div>
+              {productBrand && (
+                <p className='truncate text-[10px] text-cyan-300'>
+                  Brand: {productBrand}
+                </p>
+              )}
 
               <div className='max-h-0 overflow-hidden rounded-lg bg-slate-800/50 px-2 text-[10px] text-slate-500 transition-all duration-300 group-hover:max-h-20 group-hover:py-1.5'>
                 <p>Current: {formatPrice(metrics.currentPrice)}</p>

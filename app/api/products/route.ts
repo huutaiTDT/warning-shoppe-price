@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const maxPrice = searchParams.get("maxPrice");
     const minRating = searchParams.get("minRating");
     const shopId = searchParams.get("shop") || "";
+    const externalId = searchParams.get("external_id") || "";
     const overOriginal =
       searchParams.get("overOriginal") === "true" ||
       searchParams.get("underOriginal") === "true";
@@ -49,6 +50,10 @@ export async function GET(request: NextRequest) {
 
     if (shopId) {
       query = query.eq("shop_id", shopId);
+    }
+
+    if (externalId) {
+      query = query.eq("external_id", externalId);
     }
 
     const sortedQuery = query.order("created_at", { ascending: false });
@@ -83,6 +88,8 @@ export async function GET(request: NextRequest) {
         priceMin,
         priceMax,
         priceOriginal,
+        thumbnail: product.thumbnail || product.thumbnail_url || product.image,
+        brand: product.brand || product.brand_name || product.category || null,
         shopeeAvgPrice,
         priceDelta,
         priceTrend,
@@ -94,7 +101,7 @@ export async function GET(request: NextRequest) {
 
     const filteredProducts =
       overOriginal ?
-        normalizedProducts.filter((product: any) => product.isAboveOriginal)
+        normalizedProducts.filter((product: any) => !product.isAboveOriginal)
       : normalizedProducts;
 
     const finalTotal = overOriginal ? filteredProducts?.length : count || 0;
