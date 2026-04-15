@@ -1,0 +1,115 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ant Design Dark Theme Customization */
+.ant-layout {
+  background-color: #0f172a;
+}
+
+.ant-layout-sider {
+  background-color: #1e293b;
+}
+
+.ant-layout-header {
+  background-color: #1e293b;
+}
+
+.ant-layout-content {
+  background-color: #0f172a;
+}
+
+.ant-card {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+.ant-table-wrapper {
+  background-color: #1e293b;
+}
+
+.ant-btn-primary {
+  background-color: #10b981;
+  border-color: #10b981;
+}
+
+.ant-btn-primary:hover {
+  background-color: #059669;
+  border-color: #059669;
+}
+
+.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #10b981;
+}
+
+.ant-menu-item-selected {
+  background-color: #10b981 !important;
+  color: white !important;
+}
+
+.ant-badge-status-dot {
+  width: 8px;
+  height: 8px;
+}
+
+.ant-input,
+.ant-input-number,
+.ant-select-selector,
+.ant-picker {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+.ant-input::placeholder,
+.ant-input-number::placeholder {
+  color: #64748b;
+}
+
+.ant-btn {
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+.ant-menu-dark {
+  background-color: #1e293b;
+}
+
+.ant-modal-content {
+  background-color: #1e293b;
+}
+
+.ant-modal-header {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+.ant-modal-title {
+  color: #e2e8f0;
+}
+
+.ant-form-item-label > label {
+  color: #cbd5e1;
+}
+
