@@ -1,6 +1,7 @@
 /** @format */
 
-import axios from "axios";
+import { emitApiToast } from "@/components/toast/hook";
+import axios, { type AxiosRequestConfig } from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -32,7 +33,20 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem("auth_token");
       window.location.href = "/login";
+      return Promise.reject(error);
     }
+
+    const errorMessage =
+      error.response?.data?.error ||
+      error.response?.data?.message ||
+      error.message ||
+      "Có lỗi xảy ra khi gọi API";
+
+    emitApiToast({
+      type: "error",
+      title: "API Error",
+      description: errorMessage,
+    });
     return Promise.reject(error);
   },
 );
@@ -73,14 +87,16 @@ export const productsAPI = {
     api.post("/products/sync-from-link", { link }),
   update: (id: string, data: any) => api.put(`/products/${id}`, data),
   delete: (id: string) => api.delete(`/products/${id}`),
-  import: (file: File) => {
+  import: (file: File, config?: AxiosRequestConfig) => {
     const formData = new FormData();
     formData.append("file", file);
     return api.post("/products/import", formData, {
+      ...config,
       headers: { "Content-Type": "multipart/form-data" },
     });
   },
-  export: () => api.get("/products/export", { responseType: "blob" }),
+  export: (config?: AxiosRequestConfig) =>
+    api.get("/products/export", { responseType: "blob", ...config }),
 };
 
 // Crawl History APIs
@@ -88,4 +104,19 @@ export const crawlHistoryAPI = {
   list: (page = 1, limit = 10) =>
     api.get("/crawl-history", { params: { page, limit } }),
   get: (id: string) => api.get(`/crawl-history/${id}`),
+};
+
+// Dashboard APIs
+export const dashboardAPI = {
+  getOverview: () => api.get("/dashboard/overview"),
+};
+
+// Master Data - Brands APIs
+export const brandsAPI = {
+  list: (page = 1, limit = 20, search?: string, active?: boolean | undefined) =>
+    api.get("/master-data/brands", { params: { page, limit, search, active } }),
+  get: (id: string) => api.get(`/master-data/brands/${id}`),
+  create: (data: any) => api.post("/master-data/brands", data),
+  update: (id: string, data: any) => api.put(`/master-data/brands/${id}`, data),
+  delete: (id: string) => api.delete(`/master-data/brands/${id}`),
 };

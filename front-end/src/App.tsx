@@ -10,17 +10,19 @@ import {
   Routes,
 } from "react-router-dom";
 
+import Toast from "@/components/toast";
+import { useAppToastListener } from "@/components/toast/hook";
+import BrandManager from "@/pages/BrandManager";
 import CrawlHistory from "@/pages/CrawlHistory";
 import Dashboard from "@/pages/Dashboard";
 import DashboardLayout from "@/pages/Layout";
 import Login from "@/pages/Login";
 import ProductDetail from "@/pages/ProductDetail";
-import ProductForm from "@/pages/ProductForm";
 import Settings from "@/pages/Settings";
 import ShopForm from "@/pages/ShopForm";
 import Shops from "@/pages/Shops";
+import ProductForm from "./pages/ProductForm";
 import Products from "./pages/Products";
-
 // Private Route Component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -42,6 +44,8 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  useAppToastListener();
+
   const theme = {
     token: {
       colorBgBase: "#101828",
@@ -91,11 +95,37 @@ export default function App() {
       colorItemSelected: "#10b981",
       colorTooltipBg: "#374151",
     },
-    algorithm: undefined, // Will add dark theme
+
+    components: {
+      Select: {
+        optionSelectedBg: "#22c55e20",
+        optionActiveBg: "#22c55e10",
+        optionSelectedColor: "#22c55e",
+        optionActiveColor: "#22c55e",
+        optionHoverBg: "#22c55e10",
+        optionHoverColor: "#22c55e",
+        optionDisabledColor: "#374151",
+        optionDisabledBg: "#374151",
+        colorBorderHover: "#22c55e",
+        colorBorderFocus: "#22c55e",
+      },
+      Button: {
+        boxShadow: "0 4px 12px rgba(34,197,94,0.4)",
+        primaryShadow: "0 4px 12px rgba(34,197,94,0.5)",
+        dangerShadow: "0 4px 12px rgba(255,0,0,0.4)",
+      },
+      Input: {
+        boxShadow: "0 4px 12px rgba(34,197,94,0.4)",
+        primaryShadow: "0 4px 12px rgba(34,197,94,0.5)",
+        dangerShadow: "0 4px 12px rgba(255,0,0,0.4)",
+        colorBorderHover: "#22c55e",
+      },
+    },
   };
 
   return (
     <ConfigProvider locale={viVN} theme={theme}>
+      <Toast />
       <Router>
         <Routes>
           <Route path='/login' element={<Login />} />
@@ -116,6 +146,7 @@ export default function App() {
             <Route path='products/:id' element={<ProductDetail />} />
             <Route path='products/:id/edit' element={<ProductForm />} />
             <Route path='crawl-history' element={<CrawlHistory />} />
+            <Route path='brands' element={<BrandManager />} />
             <Route path='settings' element={<Settings />} />
           </Route>
 

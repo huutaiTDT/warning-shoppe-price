@@ -10,10 +10,19 @@ import {
   SettingOutlined,
   ShopOutlined,
   ShoppingOutlined,
+  TagsOutlined,
 } from "@ant-design/icons";
-import { Avatar, Button, Dropdown, Layout, Menu, message } from "antd";
+import {
+  Avatar,
+  Breadcrumb,
+  Button,
+  Dropdown,
+  Layout,
+  Menu,
+  message,
+} from "antd";
 import { Package } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const { Header, Sider, Content } = Layout;
@@ -22,6 +31,91 @@ export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  const breadcrumbItems = useMemo(() => {
+    const path = location.pathname;
+
+    if (path === "/dashboard") {
+      return [{ title: "Tổng quan" }];
+    }
+
+    if (path === "/dashboard/brands") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: "Quản lý thương hiệu" },
+      ];
+    }
+
+    if (path === "/dashboard/shops") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: "Cửa hàng" },
+      ];
+    }
+
+    if (path === "/dashboard/shops/new") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: <Link to='/dashboard/shops'>Cửa hàng</Link> },
+        { title: "Thêm cửa hàng" },
+      ];
+    }
+
+    if (/^\/dashboard\/shops\/[^/]+$/.test(path)) {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: <Link to='/dashboard/shops'>Cửa hàng</Link> },
+        { title: "Cập nhật cửa hàng" },
+      ];
+    }
+
+    if (path === "/dashboard/products") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: "Sản phẩm" },
+      ];
+    }
+
+    if (path === "/dashboard/products/new") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: <Link to='/dashboard/products'>Sản phẩm</Link> },
+        { title: "Thêm sản phẩm" },
+      ];
+    }
+
+    if (/^\/dashboard\/products\/[^/]+\/edit$/.test(path)) {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: <Link to='/dashboard/products'>Sản phẩm</Link> },
+        { title: "Cập nhật sản phẩm" },
+      ];
+    }
+
+    if (/^\/dashboard\/products\/[^/]+$/.test(path)) {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: <Link to='/dashboard/products'>Sản phẩm</Link> },
+        { title: "Chi tiết sản phẩm" },
+      ];
+    }
+
+    if (path === "/dashboard/crawl-history") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: "Lịch sử quét" },
+      ];
+    }
+
+    if (path === "/dashboard/settings") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: "Cài đặt" },
+      ];
+    }
+
+    return [{ title: "Tổng quan" }];
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     try {
@@ -40,6 +134,11 @@ export default function DashboardLayout() {
       key: "/dashboard",
       icon: <DashboardOutlined />,
       label: <Link to='/dashboard'>Dashboard</Link>,
+    },
+    {
+      key: "/dashboard/brands",
+      icon: <TagsOutlined />,
+      label: <Link to='/dashboard/brands'>Thương hiệu</Link>,
     },
     {
       key: "/dashboard/shops",
@@ -99,17 +198,25 @@ export default function DashboardLayout() {
           style={{
             height: "4rem ",
           }}
-          className=' bg-emerald-600/20 border-b border-emerald-600/30 flex items-center justify-between px-2'>
-          <Button
-            type='text'
-            icon={
-              collapsed ?
-                <MenuUnfoldOutlined className='h-8 w-8' />
-              : <MenuFoldOutlined className='h-8 w-8' />
-            }
-            onClick={() => setCollapsed(!collapsed)}
-            className='text-white'
-          />
+          className=' bg-emerald-600/20 border-b border-emerald-600/30 flex items-center justify-between '>
+          <div className='flex items-center gap-3 min-w-0'>
+            <Button
+              type='text'
+              icon={
+                collapsed ?
+                  <MenuUnfoldOutlined className='h-8 w-8' />
+                : <MenuFoldOutlined className='h-8 w-8' />
+              }
+              onClick={() => setCollapsed(!collapsed)}
+              className='text-white'
+            />
+
+            <Breadcrumb
+              items={breadcrumbItems}
+              separator='/'
+              className='text-xs md:text-sm'
+            />
+          </div>
 
           <Dropdown menu={userMenu}>
             <div className='flex items-center gap-3 cursor-pointer hover:opacity-80'>
@@ -121,7 +228,7 @@ export default function DashboardLayout() {
           </Dropdown>
         </Header>
 
-        <Content className='p-6 overflow-auto'>
+        <Content className='overflow-auto'>
           <Outlet />
         </Content>
       </Layout>

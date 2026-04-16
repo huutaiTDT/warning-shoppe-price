@@ -1,4 +1,4 @@
-# Quản lý Tiếp thị Liên kết - React + Vite + Ant Design
+# Quản lý Cảnh báo giá - React + Vite + Ant Design
 
 Ứng dụng quản lý sản phẩm và cửa hàng được chuyển đổi từ Next.js sang **React + Vite** với **Ant Design** + **Tailwind CSS**.
 

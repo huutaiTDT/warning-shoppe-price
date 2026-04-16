@@ -1,9 +1,9 @@
 /** @format */
 
-import { shopsAPI } from "@/services/api";
+import { crawlHistoryAPI, shopsAPI } from "@/services/api";
 import { Button, Input, Popconfirm, Space, Table, message } from "antd";
-import { Edit, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Edit, Play, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 const normalizeShop = (shop: any) => ({
@@ -18,6 +18,50 @@ export default function ShopsPage() {
   const [search, setSearch] = useState("");
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20 });
   const [total, setTotal] = useState(0);
+  const [crawlProgress, setCrawlProgress] = useState<{
+    visible: boolean;
+    shopName: string;
+    status: "running" | "completed" | "failed";
+    percent: number;
+    crawledCount: number;
+    productCount: number;
+    errorMessage: string;
+  }>({
+    visible: false,
+    shopName: "",
+    status: "running",
+    percent: 0,
+    crawledCount: 0,
+    productCount: 0,
+    errorMessage: "",
+  });
+  const crawlFakeProgressRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+
+  const stopFakeCrawlProgress = () => {
+    if (crawlFakeProgressRef.current) {
+      clearInterval(crawlFakeProgressRef.current);
+      crawlFakeProgressRef.current = null;
+    }
+  };
+
+  const startFakeCrawlProgress = () => {
+    stopFakeCrawlProgress();
+    let value = 0;
+
+    crawlFakeProgressRef.current = setInterval(() => {
+      value += Math.random() * 10;
+      setCrawlProgress((prev) => ({
+        ...prev,
+        percent: Math.min(90, Math.max(prev.percent, Math.round(value))),
+      }));
+
+      if (value >= 90) {
+        stopFakeCrawlProgress();
+      }
+    }, 250);
+  };
 
   const fetchShops = async (page = 1, limit = 20) => {
     setLoading(true);
@@ -54,6 +98,12 @@ export default function ShopsPage() {
     fetchShops(pagination.page, pagination.pageSize);
   }, [search, pagination]);
 
+  useEffect(() => {
+    return () => {
+      stopFakeCrawlProgress();
+    };
+  }, []);
+
   const handleDelete = async (id: string) => {
     try {
       await shopsAPI.delete(id);
@@ -64,23 +114,60 @@ export default function ShopsPage() {
     }
   };
 
-  const handleCrawl = async (id: string) => {
+  const handleCrawl = async (id: string, shopName: string) => {
     try {
-      await shopsAPI.crawl(id);
-      message.success("Bắt đầu quét");
-      fetchShops(pagination.page, pagination.pageSize);
-    } catch (error) {
-      message.error("Lỗi quét");
-    }
-  };
+      setCrawlProgress({
+        visible: true,
+        shopName,
+        status: "running",
+        percent: 0,
+        crawledCount: 0,
+        productCount: 0,
+        errorMessage: "",
+      });
+      startFakeCrawlProgress();
 
-  const handleResetStatus = async (id: string) => {
-    try {
-      await shopsAPI.resetProductStatus(id);
-      message.success("Đặt lại thành công");
+      const crawlRes = await shopsAPI.crawl(id);
+      stopFakeCrawlProgress();
+
+      let crawledCount = 0;
+      let productCount = 0;
+
+      if (crawlRes?.data?.crawlHistoryId) {
+        try {
+          const historyRes = await crawlHistoryAPI.get(
+            crawlRes.data.crawlHistoryId,
+          );
+          crawledCount = Number(historyRes?.data?.crawledCount || 0);
+          productCount = Number(historyRes?.data?.productCount || 0);
+        } catch {
+          // Ignore history fetch failure and keep fallback values.
+        }
+      }
+
+      setCrawlProgress((prev) => ({
+        ...prev,
+        status: "completed",
+        percent: 100,
+        crawledCount,
+        productCount,
+      }));
+
+      message.success("Crawl thành công");
       fetchShops(pagination.page, pagination.pageSize);
+
+      setTimeout(() => {
+        setCrawlProgress((prev) => ({ ...prev, visible: false }));
+      }, 1800);
     } catch (error) {
-      message.error("Lỗi");
+      stopFakeCrawlProgress();
+      setCrawlProgress((prev) => ({
+        ...prev,
+        status: "failed",
+        percent: 100,
+        errorMessage: "Crawl thất bại",
+      }));
+      message.error("Lỗi quét");
     }
   };
 
@@ -131,17 +218,14 @@ export default function ShopsPage() {
       fixed: "right" as const,
       render: (_: any, record: any) => (
         <Space size='large'>
-          <Button
-            type='primary'
-            size='large'
-            icon={<Play size={14} />}
-            onClick={() => handleCrawl(record.id)}
-          />
-          <Button
-            size='large'
-            icon={<RotateCcw size={14} />}
-            onClick={() => handleResetStatus(record.id)}
-          />
+          {!record?.is_sys_product_by_link && (
+            <Button
+              type='primary'
+              size='large'
+              icon={<Play size={14} />}
+              onClick={() => handleCrawl(record.id, record.name || "Cửa hàng")}
+            />
+          )}
           <Link to={`/dashboard/shops/${record.id}`}>
             <Button size='large' icon={<Edit size={14} />} />
           </Link>
@@ -191,7 +275,7 @@ export default function ShopsPage() {
           />
         </div>
 
-        <div className='flex-shrink-0 bg-gray-900 border-t border-gray-800 px-4 py-3'>
+        <div className='shrink-0 bg-gray-900 border-t border-gray-800 px-4 py-3'>
           <div className='flex items-center justify-between'>
             <span className='text-xs text-gray-400'>
               Hiển thị {shops.length} / {total} mục
@@ -220,6 +304,58 @@ export default function ShopsPage() {
           </div>
         </div>
       </div>
+
+      {crawlProgress.visible && (
+        <div className='fixed bottom-6 right-6 z-50'>
+          <div className='bg-gray-900 text-white px-4 py-3 rounded-xl shadow-2xl w-72 border border-gray-700'>
+            <div className='text-sm mb-2 flex justify-between gap-2'>
+              <span className='truncate'>
+                {crawlProgress.status === "running" ?
+                  `Đang crawl: ${crawlProgress.shopName}`
+                : crawlProgress.status === "completed" ?
+                  `Hoàn tất: ${crawlProgress.shopName}`
+                : `Lỗi crawl: ${crawlProgress.shopName}`}
+              </span>
+              <span>{crawlProgress.percent}%</span>
+            </div>
+
+            <div className='w-full bg-gray-700 h-2 rounded'>
+              <div
+                className={`h-2 rounded transition-all duration-300 ${
+                  crawlProgress.status === "failed" ?
+                    "bg-red-500"
+                  : "bg-green-500"
+                }`}
+                style={{ width: `${crawlProgress.percent}%` }}
+              />
+            </div>
+
+            {crawlProgress.status === "completed" && (
+              <div className='text-xs text-gray-300 mt-2'>
+                Đã cào: {crawlProgress.crawledCount} /{" "}
+                {crawlProgress.productCount}
+              </div>
+            )}
+
+            {crawlProgress.status === "failed" && (
+              <div className='text-xs text-red-300 mt-2'>
+                {crawlProgress.errorMessage || "Có lỗi xảy ra khi crawl"}
+              </div>
+            )}
+
+            <div className='mt-2 flex justify-end'>
+              <Button
+                size='small'
+                type='text'
+                onClick={() =>
+                  setCrawlProgress((prev) => ({ ...prev, visible: false }))
+                }>
+                Ẩn
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

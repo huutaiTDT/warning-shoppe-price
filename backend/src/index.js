@@ -12,8 +12,10 @@ import express from "express";
 
 // Import routes
 import authRoutes from "./routes/auth.js";
+import brandsRoutes from "./routes/brands.js";
 import crawlRoutes from "./routes/crawl.js";
 import crawlHistoryRoutes from "./routes/crawlHistory.js";
+import dashboardRoutes from "./routes/dashboard.js";
 import productsRoutes from "./routes/products.js";
 import shopsRoutes from "./routes/shops.js";
 
@@ -41,6 +43,8 @@ app.use("/shops", shopsRoutes);
 app.use("/shops", crawlRoutes);
 app.use("/products", productsRoutes);
 app.use("/crawl-history", crawlHistoryRoutes);
+app.use("/master-data/brands", brandsRoutes);
+app.use("/dashboard", dashboardRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -1,6 +1,7 @@
 /** @format */
 
-import { Card, Divider, List, Tag } from "antd";
+import { Button, Card, Divider, List, Tag } from "antd";
+import { Link } from "react-router-dom";
 import appPackage from "../../package.json";
 
 const appInfo = {
@@ -60,6 +61,18 @@ export default function SettingsPage() {
               </List.Item>
             )}
           />
+        </div>
+      </Card>
+
+      <Card className='bg-gray-800 border-gray-700'>
+        <h2 className='text-white text-base font-semibold m-0'>Master Data</h2>
+        <p className='text-gray-300 text-sm mt-2 mb-4'>
+          Quản lý dữ liệu thương hiệu tại màn hình chuyên dụng.
+        </p>
+        <div>
+          <Link to='/dashboard/brands'>
+            <Button type='primary'>Mở Manager Brands</Button>
+          </Link>
         </div>
       </Card>
     </div>

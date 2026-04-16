@@ -1,8 +1,9 @@
 /** @format */
 
+import ShopSnapshotPopover from "@/components/shop/ShopSnapshotPopover";
 import { normalizeProduct } from "@/lib/product";
 import { formatPrice, formatPriceRange } from "@/lib/utils";
-import { productsAPI, shopsAPI } from "@/services/api";
+import { brandsAPI, productsAPI, shopsAPI } from "@/services/api";
 import {
   Alert,
   Button,
@@ -26,7 +27,9 @@ import {
   Download,
   Edit,
   Grid3X3,
+  ImportIcon,
   LayoutList,
+  OutdentIcon,
   Plus,
   RefreshCw,
   Trash2,
@@ -34,7 +37,7 @@ import {
   TrendingUp,
   Upload as UploadIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 type ViewMode = "table" | "grid";
@@ -43,7 +46,9 @@ export default function ProductsPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState<any[]>([]);
   const [shops, setShops] = useState<any[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [brandLoading, setBrandLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20 });
   const [total, setTotal] = useState(0);
@@ -51,10 +56,44 @@ export default function ProductsPage() {
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [minRating, setMinRating] = useState<number | null>(null);
   const [shopFilter, setShopFilter] = useState<string | undefined>(undefined);
-  const [aboveOriginal, setAboveOriginal] = useState(false);
+  const [brandFilter, setBrandFilter] = useState<string | undefined>(undefined);
+  const [underOriginal, setUnderOriginal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize));
+  const [progress, setProgress] = useState<{
+    type: "import" | "export" | null;
+    percent: number;
+    visible: boolean;
+  }>({
+    type: null,
+    percent: 0,
+    visible: false,
+  });
+  const fakeProgressRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const stopFakeProgress = () => {
+    if (fakeProgressRef.current) {
+      clearInterval(fakeProgressRef.current);
+      fakeProgressRef.current = null;
+    }
+  };
+
+  const startFakeProgress = () => {
+    stopFakeProgress();
+    let value = 0;
+
+    fakeProgressRef.current = setInterval(() => {
+      value += Math.random() * 12;
+      setProgress((prev) => ({
+        ...prev,
+        percent: Math.min(90, Math.max(prev.percent, Math.round(value))),
+      }));
+
+      if (value >= 90) {
+        stopFakeProgress();
+      }
+    }, 250);
+  };
   const fetchProducts = async (page = 1, limit = 20) => {
     setLoading(true);
     try {
@@ -63,7 +102,8 @@ export default function ProductsPage() {
         maxPrice: maxPrice ?? undefined,
         minRating: minRating ?? undefined,
         shop: shopFilter,
-        aboveOriginal: aboveOriginal || undefined,
+        brand: brandFilter,
+        underOriginal: underOriginal || undefined,
       };
 
       const res = await productsAPI.list(
@@ -90,6 +130,18 @@ export default function ProductsPage() {
     }
   };
 
+  const fetchBrands = async () => {
+    setBrandLoading(true);
+    try {
+      const res = await brandsAPI.list(1, 1000);
+      setBrands(res.data.brands || []);
+    } catch (error) {
+      message.error("Lỗi tải danh sách thương hiệu");
+    } finally {
+      setBrandLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchProducts(pagination.page, pagination.pageSize);
   }, [
@@ -99,16 +151,32 @@ export default function ProductsPage() {
     maxPrice,
     minRating,
     shopFilter,
-    aboveOriginal,
+    brandFilter,
+    underOriginal,
   ]);
 
   useEffect(() => {
     fetchShops();
+    fetchBrands();
   }, []);
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, page: 1 }));
-  }, [search, minPrice, maxPrice, minRating, shopFilter, aboveOriginal]);
+  }, [
+    search,
+    minPrice,
+    maxPrice,
+    minRating,
+    shopFilter,
+    brandFilter,
+    underOriginal,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      stopFakeProgress();
+    };
+  }, []);
 
   const getTrendNode = (record: any) => {
     if (!record.priceOriginal || record.priceOriginal <= 0) {
@@ -156,30 +224,148 @@ export default function ProductsPage() {
 
   const handleExport = async () => {
     try {
-      const response = await productsAPI.export();
+      setProgress({ type: "export", percent: 0, visible: true });
+      startFakeProgress();
+
+      const response = await productsAPI.export({
+        onDownloadProgress: (event) => {
+          if (event.total) {
+            stopFakeProgress();
+            const percent = Math.round((event.loaded / event.total) * 100);
+            setProgress((prev) => ({ ...prev, percent }));
+          }
+        },
+      });
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", "products.xlsx");
       document.body.appendChild(link);
       link.click();
-      link.parentElement?.removeChild(link);
+      link.remove();
+
+      setProgress((prev) => ({ ...prev, percent: 100 }));
       message.success("Xuất thành công");
     } catch (error) {
       message.error("Lỗi xuất");
+    } finally {
+      stopFakeProgress();
+      setTimeout(() => {
+        setProgress({ type: null, percent: 0, visible: false });
+      }, 800);
     }
   };
 
   const handleImport = async (file: File) => {
     try {
-      await productsAPI.import(file);
+      setProgress({ type: "import", percent: 0, visible: true });
+      startFakeProgress();
+
+      await productsAPI.import(file, {
+        onUploadProgress: (event) => {
+          if (event.total) {
+            stopFakeProgress();
+            const percent = Math.round((event.loaded / event.total) * 100);
+            setProgress((prev) => ({ ...prev, percent }));
+          }
+        },
+      });
+
+      setProgress((prev) => ({ ...prev, percent: 100 }));
       message.success("Nhập thành công");
+
       fetchProducts(pagination.page, pagination.pageSize);
-      return false;
     } catch (error) {
       message.error("Lỗi nhập");
-      return false;
+    } finally {
+      stopFakeProgress();
+      setTimeout(() => {
+        setProgress({ type: null, percent: 0, visible: false });
+      }, 800);
     }
+    return false;
+  };
+
+  const FloatingProgress = () => {
+    if (!progress.visible) return null;
+
+    const isDone = progress.percent === 100;
+    const isImport = progress.type === "import";
+
+    return (
+      <div className='fixed p-4 bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-3 duration-300'>
+        <div
+          style={{
+            padding: "20px",
+          }}
+          className='bg-gray-900/95 backdrop-blur text-white px-4 py-3 shadow-2xl w-72 border border-gray-700'>
+          {/* Header */}
+          <div className='flex items-center justify-between mb-2'>
+            <div className='flex items-center gap-2 text-sm font-medium'>
+              {/* Icon */}
+              <div
+                className={`w-6 h-6 flex items-center justify-center rounded-full ${
+                  isDone ?
+                    "bg-green-500/20 text-green-400"
+                  : "bg-blue-500/20 text-blue-400 animate-pulse"
+                }`}>
+                {isDone ?
+                  "✓"
+                : isImport ?
+                  <ImportIcon />
+                : <OutdentIcon />}
+              </div>
+
+              {/* Text */}
+              <span>
+                {isDone ?
+                  isImport ?
+                    "Import hoàn tất"
+                  : "Export hoàn tất"
+                : isImport ?
+                  "Đang import dữ liệu..."
+                : "Đang export file..."}
+              </span>
+            </div>
+
+            {/* % */}
+            <span className='text-xs text-gray-300'>{progress.percent}%</span>
+          </div>
+
+          {/* Progress bar */}
+          <div className='relative w-full bg-gray-700 h-2 rounded overflow-hidden'>
+            <div
+              className={`
+              h-2 rounded transition-all duration-300
+              ${isDone ? "bg-green-500" : "bg-gradient-to-r from-blue-500 to-emerald-400"}
+            `}
+              style={{ width: `${progress.percent}%` }}
+            />
+
+            {/* shimmer effect */}
+            {!isDone && (
+              <div className='absolute inset-0 animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent' />
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className='mt-2 text-[11px] text-gray-400 flex justify-between'>
+            <span>{isDone ? "Hoàn tất" : "Vui lòng không tắt tab..."}</span>
+
+            {isDone && (
+              <button
+                onClick={() =>
+                  setProgress({ type: null, percent: 0, visible: false })
+                }
+                className='text-gray-400 hover:text-white transition'>
+                Đóng
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const columns = [
@@ -218,10 +404,33 @@ export default function ProductsPage() {
     },
     {
       title: "Shop",
-      dataIndex: "shopName",
-      key: "shopName",
-      width: 160,
-      render: (shopName: string) => <span>{shopName || "Không rõ"}</span>,
+      key: "shop",
+      width: 200,
+      render: (_: any, record: any) => {
+        const shopId = record.shopId || record.shop_id;
+        if (!shopId) {
+          return <span className='text-gray-500'>Không rõ</span>;
+        }
+        return (
+          <div className='flex flex-col gap-1'>
+            <ShopSnapshotPopover
+              shopId={shopId}
+              shopCode={record.shopCode}
+              shopName={record.shopName}
+              shopPlatform={record.shopPlatform}>
+              <span
+                className='font-semibold text-blue-500 cursor-pointer hover:underline'
+                onClick={() => navigate(`/dashboard/shops/${shopId}`)}>
+                {record.shopCode ? `[${record.shopCode}]` : ""}{" "}
+                {record.shopName || "Không rõ"}
+              </span>
+            </ShopSnapshotPopover>
+            {record.shopPlatform && (
+              <Tag color='blue'>{record.shopPlatform}</Tag>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: "Giá Shopee",
@@ -318,7 +527,14 @@ export default function ProductsPage() {
 
   return (
     <div className='space-y-4 h-full flex flex-col'>
-      <div className='flex shrink-0 flex-wrap gap-2 items-center'>
+      <div className='sticky top-0 z-20 flex shrink-0 flex-wrap gap-2 items-center rounded-md border border-gray-800 bg-gray-950/90 px-2 py-2 backdrop-blur'>
+        <Button
+          type='primary'
+          icon={<Plus size={16} />}
+          size='large'
+          onClick={() => navigate("/dashboard/products/new")}>
+          Thêm
+        </Button>
         <Input
           placeholder='Tìm kiếm sản phẩm...'
           value={search}
@@ -364,9 +580,22 @@ export default function ProductsPage() {
           onChange={(value) => setShopFilter(value)}
           options={shops.map((shop) => ({ value: shop.id, label: shop.name }))}
         />
+        <Select
+          allowClear
+          showSearch
+          placeholder='Lọc theo thương hiệu'
+          className='min-w-55'
+          value={brandFilter}
+          loading={brandLoading}
+          onChange={(value) => setBrandFilter(value)}
+          options={brands.map((brand) => ({
+            value: brand.name,
+            label: brand.name,
+          }))}
+        />
         <Space>
-          <span className='text-xs text-gray-300'>Trên giá niêm yết</span>
-          <Switch checked={aboveOriginal} onChange={setAboveOriginal} />
+          <span className='text-xs text-gray-300'>Nhỏ giá niêm yết</span>
+          <Switch checked={underOriginal} onChange={setUnderOriginal} />
         </Space>
         <Button
           icon={<RefreshCw size={14} />}
@@ -375,7 +604,8 @@ export default function ProductsPage() {
             setMaxPrice(null);
             setMinRating(null);
             setShopFilter(undefined);
-            setAboveOriginal(false);
+            setBrandFilter(undefined);
+            setUnderOriginal(false);
             setSearch("");
           }}>
           Clear
@@ -394,13 +624,7 @@ export default function ProductsPage() {
             Grid
           </Button>
         </Space>
-        <Button
-          type='primary'
-          icon={<Plus size={16} />}
-          size='large'
-          onClick={() => navigate("/dashboard/products/new")}>
-          Thêm
-        </Button>
+
         <Button
           icon={<Download size={16} />}
           size='large'
@@ -417,7 +641,7 @@ export default function ProductsPage() {
         </Upload>
       </div>
 
-      {aboveOriginal && (
+      {underOriginal && (
         <Alert
           type='warning'
           showIcon
@@ -427,6 +651,14 @@ export default function ProductsPage() {
 
       <div className='flex-1 overflow-hidden flex flex-col'>
         <div className='flex-1 overflow-auto'>
+          {products.length > 0 && (
+            <Alert
+              type='info'
+              showIcon
+              className='mb-3'
+              message={`Có ${products.filter((p) => p.priceOriginal && p.priceOriginal > 0 && p.priceMin > p.priceOriginal).length} sản phẩm có giá cao hơn giá niêm yết`}
+            />
+          )}
           {viewMode === "table" ?
             <Table
               columns={columns}
@@ -434,7 +666,7 @@ export default function ProductsPage() {
               loading={loading}
               rowKey='id'
               pagination={false}
-              scroll={{ x: 1800, y: "100%" }}
+              scroll={{ x: 1800 }}
               size='large'
               onRow={(record) => ({
                 onClick: () => navigate(`/dashboard/products/${record.id}`),
@@ -467,7 +699,26 @@ export default function ProductsPage() {
                       }
 
                       <div className='text-xs text-gray-300'>
-                        Shop: {record.shopName}
+                        <ShopSnapshotPopover
+                          shopId={record.shopId || record.shop_id}
+                          shopCode={record.shopCode}
+                          shopName={record.shopName}
+                          shopPlatform={record.shopPlatform}>
+                          <span
+                            className='cursor-pointer text-blue-400 hover:underline'
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (record.shopId || record.shop_id) {
+                                navigate(
+                                  `/dashboard/shops/${record.shopId || record.shop_id}`,
+                                );
+                              }
+                            }}>
+                            Shop:{" "}
+                            {record.shopCode ? `[${record.shopCode}] ` : ""}
+                            {record.shopName}
+                          </span>
+                        </ShopSnapshotPopover>
                       </div>
                       <div className='text-emerald-500 font-semibold'>
                         {formatPriceRange(record.priceMin, record.priceMax)}
@@ -524,6 +775,7 @@ export default function ProductsPage() {
           </div>
         </div>
       </div>
+      <FloatingProgress />
     </div>
   );
 }

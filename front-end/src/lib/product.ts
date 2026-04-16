@@ -36,12 +36,9 @@ export const normalizeProduct = (product: any) => {
     isOverOriginal,
     shopId: product.shopId ?? product.shop_id ?? product.shops?.id,
     shopName: product.shopName ?? product.shops?.name ?? "Không rõ shop",
+    shopCode: product.shopCode ?? product.shops?.code ?? null,
+    shopPlatform: product.shopPlatform ?? product.shops?.platform ?? null,
     thumbnail: product.thumbnail ?? product.image ?? "",
-    brand:
-      product.brand ??
-      product.brandName ??
-      product.shopName ??
-      product.shops?.name ??
-      "Không rõ",
+    brand: product.brand ?? product.brandName ?? "",
   };
 };

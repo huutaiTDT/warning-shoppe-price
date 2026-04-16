@@ -207,12 +207,39 @@ body {
 .ant-btn-text {
   @apply text-gray-400 hover:text-gray-300;
 }
-.ant-select-focused:where(.css-dev-only-do-not-override-1u3uosp).ant-select-outlined:not(.ant-select-disabled):not(.ant-select-customize-input):not(.ant-pagination-size-changer) .ant-select-selector,
-:where(.css-dev-only-do-not-override-1u3uosp).ant-input-number-outlined:focus, :where(.css-dev-only-do-not-override-1u3uosp).ant-input-number-outlined:focus-within,
-:where(.css-dev-only-do-not-override-1u3uosp).ant-btn-color-dangerous,
-:where(.css-dev-only-do-not-override-1u3uosp).ant-btn-color-primary {
-  @apply shadow-none border border-[#10b981];
+:where(.css-dev-only-do-not-override-15c4jlj).ant-input-outlined:focus, :where(.css-dev-only-do-not-override-15c4jlj).ant-input-outlined:focus-within,
+.ant-input-number-outlined:focus,.ant-input-number-outlined:focus-within,
+.ant-input-number-outlined:focus, .ant-input-number-outlined:focus-within,
+.ant-btn-color-dangerous,
+.ant-btn-color-primary {
+  shadow: none!important;
+  border: 1px solid #10b981!important;
+  outline: none!important;
+  ring: none!important;
+   outline: 0 !important;
+  -webkit-box-shadow:none !important;
+  box-shadow:none !important;
+}
+* {
+  border: none!important;
 }
 main.ant-layout-content.p-6.overflow-auto.css-dev-only-do-not-override-1u3uosp{
   @apply bg-[#232D3B];
+}
+
+.ant-input-number.css-dev-only-do-not-override-15t26z.ant-input-number-outlined {
+    box-shadow: none!important;
+}
+.ant-btn-color-dangerous ,
+.ant-select-focused .ant-select-selector,
+.ant-select-selector:focus,
+.ant-select-selector:active,
+.ant-select-open .ant-select-selector {
+  outline: 0 !important;
+  -webkit-box-shadow:none !important;
+  box-shadow:none !important;
+}
+.ant-btn-color-dangerous {
+  box-shadow: none!important;
+  border: 1px solid #ef4444!important;
 }

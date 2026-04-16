@@ -5,6 +5,26 @@ import { supabase } from "../lib/supabase.js";
 
 const router = Router();
 
+// Helper: Generate shop code from URL
+const generateShopCode = (url) => {
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    const shopSlug = pathname.replace(/^\//, "").split("?")[0];
+    if (!shopSlug) return null;
+
+    const code = shopSlug
+      .split("/")[0]
+      .toUpperCase()
+      .replace(/-/g, "_")
+      .replace(/[^A-Z0-9_]/g, "");
+
+    return code || null;
+  } catch {
+    return null;
+  }
+};
+
 // GET: List shops with pagination
 router.get("/", async (req, res) => {
   try {
@@ -15,12 +35,12 @@ router.get("/", async (req, res) => {
 
     let query = supabase
       .from("shops")
-      .select("*", { count: "exact" })
+      .select("*, shop_brands(brand_id, master_brands(*))", { count: "exact" })
       .order("created_at", { ascending: false });
 
     if (search) {
       query = query.or(
-        `name.ilike.%${search}%,url.ilike.%${search}%,platform.ilike.%${search}%`,
+        `name.ilike.%${search}%,url.ilike.%${search}%,code.ilike.%${search}%,platform.ilike.%${search}%`,
       );
     }
 
@@ -54,7 +74,7 @@ router.get("/:id", async (req, res) => {
 
     const { data: shop, error } = await supabase
       .from("shops")
-      .select("*")
+      .select("*, shop_brands(brand_id, master_brands(*))")
       .eq("id", id)
       .single();
 
@@ -72,10 +92,15 @@ router.get("/:id", async (req, res) => {
 // POST: Create shop
 router.post("/", async (req, res) => {
   try {
-    const { name, url, platform } = req.body;
+    const { name, url, platform, code, brand_ids } = req.body;
 
     if (!name || !url || !platform) {
       return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    let finalCode = code;
+    if (!finalCode) {
+      finalCode = generateShopCode(url);
     }
 
     const { data: shop, error } = await supabase
@@ -84,6 +109,7 @@ router.post("/", async (req, res) => {
         name,
         url,
         platform,
+        code: finalCode,
         is_sys_product_by_link: false,
       })
       .select()
@@ -91,6 +117,25 @@ router.post("/", async (req, res) => {
 
     if (error) {
       return res.status(500).json({ error: error.message });
+    }
+
+    // Add brands if provided
+    if (Array.isArray(brand_ids) && brand_ids.length > 0) {
+      const brandRecords = brand_ids.map((brand_id) => ({
+        shop_id: shop.id,
+        brand_id,
+      }));
+
+      const result = await supabase
+        .from("shop_brands")
+        .insert(brandRecords)
+        .select();
+      if (result.error) {
+        console.error("Error associating brands:", result.error);
+        res
+          .status(500)
+          .json({ error: "Shop updated but failed to associate brands" });
+      }
     }
 
     res.status(201).json(shop);
@@ -104,17 +149,46 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, url, platform } = req.body;
+    const { name, url, platform, code, brand_ids } = req.body;
 
     const { data: shop, error } = await supabase
       .from("shops")
-      .update({ name, url, platform, updated_at: new Date() })
+      .update({
+        name,
+        url,
+        platform,
+        code: code || generateShopCode(url),
+        updated_at: new Date(),
+      })
       .eq("id", id)
       .select()
       .single();
 
     if (error) {
       return res.status(500).json({ error: error.message });
+    }
+
+    // Update brands if provided
+    if (Array.isArray(brand_ids)) {
+      // Delete existing brands
+      await supabase.from("shop_brands").delete().eq("shop_id", id);
+
+      // Add new brands
+      if (brand_ids.length > 0) {
+        const brandRecords = brand_ids.map((brand_id) => ({
+          shop_id: id,
+          brand_id,
+        }));
+        const result = await supabase
+          .from("shop_brands")
+          .insert(brandRecords)
+          .select();
+        if (result.error) {
+          res
+            .status(500)
+            .json({ error: "Shop updated but failed to associate brands" });
+        }
+      }
     }
 
     res.json(shop);

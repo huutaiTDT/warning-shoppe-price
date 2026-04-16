@@ -1,8 +1,13 @@
 /** @format */
 
-import { normalizeProduct } from "@/lib/product";
-import { productsAPI, shopsAPI } from "@/services/api";
 import {
+  QuickCreateBrandPopover,
+  QuickCreateShopPopover,
+} from "@/components/quick-create/MasterDataQuickCreate";
+import { normalizeProduct } from "@/lib/product";
+import { brandsAPI, productsAPI, shopsAPI } from "@/services/api";
+import {
+  Alert,
   Button,
   Card,
   Col,
@@ -13,6 +18,7 @@ import {
   Select,
   Space,
   Spin,
+  Steps,
   message,
 } from "antd";
 import { ArrowLeft, RefreshCw, Save } from "lucide-react";
@@ -24,11 +30,19 @@ export default function ProductFormPage() {
   const { id } = useParams();
   const [form] = Form.useForm();
   const [shops, setShops] = useState<any[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [brandLoading, setBrandLoading] = useState(false);
+  const [createStep, setCreateStep] = useState(0);
+  const [syncedFromShopee, setSyncedFromShopee] = useState(false);
+  const [lastSyncedLink, setLastSyncedLink] = useState("");
 
   const isEdit = useMemo(() => Boolean(id), [id]);
+  const isLinkStep = !isEdit && createStep === 0;
+  const isDetailStep = isEdit || createStep === 1;
+  const createLocked = !isEdit && createStep === 0;
 
   const fetchShops = async () => {
     try {
@@ -39,6 +53,18 @@ export default function ProductFormPage() {
     }
   };
 
+  const fetchBrands = async () => {
+    setBrandLoading(true);
+    try {
+      const res = await brandsAPI.list(1, 1000);
+      setBrands(res.data.brands || []);
+    } catch (error) {
+      message.error("Lỗi tải danh sách thương hiệu");
+    } finally {
+      setBrandLoading(false);
+    }
+  };
+
   const fetchProduct = async (productId: string) => {
     setLoading(true);
     try {
@@ -46,19 +72,19 @@ export default function ProductFormPage() {
       const data = normalizeProduct(res.data || {});
 
       form.setFieldsValue({
-        shopeeLink: data.aff_link,
+        shopeeLink: data.external_link,
         name: data.name,
         shop_id: data.shopId,
+        brand: data.brand,
         priceMin: data.priceMin,
         priceMax: data.priceMax,
         priceOriginal: data.priceOriginal,
         rating: data.rating,
         sold: data.sold,
         image: data.thumbnail,
-        aff_link: data.aff_link,
+        external_link: data.external_link,
         external_id: data.external_id,
         description: data.description,
-        brand: data.brand,
       });
     } catch (error) {
       message.error("Không tải được dữ liệu sản phẩm");
@@ -70,6 +96,7 @@ export default function ProductFormPage() {
 
   useEffect(() => {
     fetchShops();
+    fetchBrands();
   }, []);
 
   useEffect(() => {
@@ -103,9 +130,12 @@ export default function ProductFormPage() {
         sold: data.sold,
         external_id: data.external_id,
         description: data.description,
-        aff_link: data.aff_link || link,
+        external_link: data.external_link || link,
       });
 
+      setSyncedFromShopee(true);
+      setLastSyncedLink(link);
+      setCreateStep(1);
       message.success("Đồng bộ thông tin thành công");
     } catch (error) {
       message.error(
@@ -116,8 +146,39 @@ export default function ProductFormPage() {
     }
   };
 
+  const handleContinueToDetailStep = () => {
+    const shopeeLink = form.getFieldValue("shopeeLink");
+
+    if (!shopeeLink) {
+      message.warning("Bước 1: Nhập Shopee link trước khi tiếp tục");
+      return;
+    }
+
+    if (!syncedFromShopee || shopeeLink !== lastSyncedLink) {
+      message.warning("Bước 1: Cần đồng bộ Shopee link trước khi tiếp tục");
+      return;
+    }
+
+    setCreateStep(1);
+  };
+
   const handleSubmit = async () => {
     try {
+      if (!isEdit) {
+        const shopeeLink = form.getFieldValue("shopeeLink");
+        if (!shopeeLink) {
+          setCreateStep(0);
+          message.warning("Bước 1: Nhập Shopee link trước khi thêm sản phẩm");
+          return;
+        }
+
+        if (!syncedFromShopee || shopeeLink !== lastSyncedLink) {
+          setCreateStep(0);
+          message.warning("Bước 1: Cần đồng bộ Shopee link trước khi lưu");
+          return;
+        }
+      }
+
       const values = await form.validateFields();
       setSaving(true);
 
@@ -132,7 +193,7 @@ export default function ProductFormPage() {
         rating: Number(values.rating || 0),
         sold: Number(values.sold || 0),
         image: values.image,
-        aff_link: values.aff_link || values.shopeeLink,
+        external_link: values.external_link || values.shopeeLink,
         description: values.description,
         external_id: values.external_id,
       };
@@ -165,8 +226,8 @@ export default function ProductFormPage() {
   }
 
   return (
-    <div className='space-y-4'>
-      <div className='flex items-center justify-between gap-2'>
+    <div className='space-y-4 relative'>
+      <div className='flex sticky top-0 z-1000 backdrop-blur-3xl left-0 right-0 items-center justify-between gap-2'>
         <Space>
           <Button
             icon={<ArrowLeft size={14} />}
@@ -182,112 +243,250 @@ export default function ProductFormPage() {
           type='primary'
           icon={<Save size={14} />}
           loading={saving}
-          onClick={handleSubmit}>
-          {isEdit ? "Lưu cập nhật" : "Lưu sản phẩm"}
+          onClick={isLinkStep ? handleContinueToDetailStep : handleSubmit}>
+          {isEdit ?
+            "Lưu cập nhật"
+          : isLinkStep ?
+            "Tiếp tục"
+          : "Lưu sản phẩm"}
         </Button>
       </div>
 
       <Card className='bg-gray-800 border-gray-700'>
         <Form layout='vertical' form={form}>
           {!isEdit && (
-            <Row gutter={12}>
-              <Col span={18}>
-                <Form.Item label='Link Shopee' name='shopeeLink'>
-                  <Input placeholder='https://shopee.vn/...' />
-                </Form.Item>
-              </Col>
-              <Col span={6}>
-                <Button
-                  block
-                  className='mt-7.5'
-                  loading={syncing}
-                  icon={<RefreshCw size={14} />}
-                  onClick={handleSyncFromShopeeLink}>
-                  Đồng bộ
-                </Button>
-              </Col>
-            </Row>
+            <>
+              <Steps
+                size='small'
+                current={createStep}
+                className='mb-4'
+                items={[
+                  {
+                    title: "Bước 1",
+                    description: "Nhập và đồng bộ Shopee link",
+                  },
+                  {
+                    title: "Bước 2",
+                    description: "Điền thông tin và lưu sản phẩm",
+                  },
+                ]}
+              />
+
+              {isLinkStep && (
+                <div className='rounded border flex flex-col gap-2  border-blue-900/60 bg-blue-950/20 p-4 mb-4'>
+                  <Alert
+                    type='info'
+                    showIcon
+                    className='mb-4'
+                    message='Bước 1: Nhập và đồng bộ Shopee link trước khi thêm sản phẩm'
+                  />
+
+                  <Row
+                    gutter={12}
+                    className='flex justify-between items-center'>
+                    <Col span={18}>
+                      <Form.Item
+                        label='Link Shopee'
+                        name='shopeeLink'
+                        rules={[
+                          { required: true, message: "Nhập link Shopee" },
+                        ]}>
+                        <Input
+                          placeholder='https://shopee.vn/...'
+                          onChange={(e) => {
+                            const nextValue = e.target.value;
+                            if (nextValue !== lastSyncedLink) {
+                              setSyncedFromShopee(false);
+                            }
+                          }}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Button
+                        block
+                        className='mt-7.5'
+                        loading={syncing}
+                        icon={<RefreshCw size={14} />}
+                        onClick={handleSyncFromShopeeLink}>
+                        Đồng bộ
+                      </Button>
+                    </Col>
+                  </Row>
+                </div>
+              )}
+
+              {isDetailStep && (
+                <Alert
+                  type='success'
+                  showIcon
+                  className='mb-4'
+                  message='Bước 2: Hoàn tất thông tin sản phẩm và lưu'
+                  description={
+                    lastSyncedLink ?
+                      `Đã đồng bộ từ link: ${lastSyncedLink}`
+                    : undefined
+                  }
+                />
+              )}
+            </>
           )}
 
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item
-                label='Tên sản phẩm'
-                name='name'
-                rules={[{ required: true, message: "Nhập tên sản phẩm" }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label='Shop'
-                name='shop_id'
-                rules={[{ required: true, message: "Chọn shop" }]}>
-                <Select
-                  placeholder='Chọn shop'
-                  options={shops.map((shop) => ({
-                    value: shop.id,
-                    label: shop.name,
-                  }))}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+          {isDetailStep && (
+            <>
+              {!isEdit && (
+                <div className='mb-4'>
+                  <Button
+                    onClick={() => setCreateStep(0)}
+                    type='default'
+                    className='border-gray-600 text-gray-200'>
+                    Quay lại Bước 1
+                  </Button>
+                </div>
+              )}
 
-          <Row gutter={12}>
-            <Col span={8}>
-              <Form.Item
-                label='Giá min'
-                name='priceMin'
-                rules={[{ required: true, message: "Nhập giá min" }]}>
-                <InputNumber className='w-full' min={0} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                label='Giá max'
-                name='priceMax'
-                rules={[{ required: true, message: "Nhập giá max" }]}>
-                <InputNumber className='w-full' min={0} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label='Giá niêm yết' name='priceOriginal'>
-                <InputNumber className='w-full' min={0} />
-              </Form.Item>
-            </Col>
-          </Row>
+              <Row gutter={12} className='flex flex-wrap gap-2'>
+                <Col span={12}>
+                  <Form.Item
+                    label='Tên sản phẩm'
+                    name='name'
+                    rules={[{ required: true, message: "Nhập tên sản phẩm" }]}>
+                    <Input disabled={createLocked} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    label={
+                      <div className='flex items-center gap-2'>
+                        <span>Shop</span>
+                        <QuickCreateShopPopover
+                          disabled={createLocked}
+                          onCreated={async (shop) => {
+                            await fetchShops();
+                            if (shop?.id) {
+                              form.setFieldValue("shop_id", shop.id);
+                            }
+                          }}
+                        />
+                      </div>
+                    }
+                    name='shop_id'
+                    rules={[{ required: true, message: "Chọn shop" }]}>
+                    <Select
+                      disabled={createLocked}
+                      placeholder='Chọn shop'
+                      options={shops.map((shop) => ({
+                        value: shop.id,
+                        label: shop.name,
+                      }))}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
 
-          <Row gutter={12}>
-            <Col span={8}>
-              <Form.Item label='Thương hiệu' name='brand'>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label='Rating' name='rating'>
-                <InputNumber className='w-full' min={0} max={5} step={0.1} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label='Đã bán' name='sold'>
-                <InputNumber className='w-full' min={0} />
-              </Form.Item>
-            </Col>
-          </Row>
+              <Row gutter={12}>
+                <Col span={8}>
+                  <Form.Item
+                    label='Giá min'
+                    name='priceMin'
+                    rules={[{ required: true, message: "Nhập giá min" }]}>
+                    <InputNumber
+                      className='w-full'
+                      min={0}
+                      disabled={createLocked}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    label='Giá max'
+                    name='priceMax'
+                    rules={[{ required: true, message: "Nhập giá max" }]}>
+                    <InputNumber
+                      className='w-full'
+                      min={0}
+                      disabled={createLocked}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label='Giá niêm yết' name='priceOriginal'>
+                    <InputNumber
+                      className='w-full'
+                      min={0}
+                      disabled={createLocked}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
 
-          <Form.Item label='Thumbnail URL' name='image'>
-            <Input />
-          </Form.Item>
-          <Form.Item label='Affiliate Link' name='aff_link'>
-            <Input />
-          </Form.Item>
-          <Form.Item label='External ID' name='external_id'>
-            <Input />
-          </Form.Item>
-          <Form.Item label='Mô tả' name='description'>
-            <Input.TextArea rows={3} />
-          </Form.Item>
+              <Row gutter={12}>
+                <Col span={8}>
+                  <Form.Item
+                    label={
+                      <div className='flex items-center gap-2'>
+                        <span>Thương hiệu</span>
+                        <QuickCreateBrandPopover
+                          disabled={createLocked}
+                          onCreated={async (brand) => {
+                            await fetchBrands();
+                            if (brand?.name) {
+                              form.setFieldValue("brand", brand.name);
+                            }
+                          }}
+                        />
+                      </div>
+                    }
+                    name='brand'>
+                    <Select
+                      disabled={createLocked}
+                      showSearch
+                      allowClear
+                      loading={brandLoading}
+                      placeholder='Chọn thương hiệu'
+                      options={brands.map((brand) => ({
+                        value: brand.name,
+                        label: brand.name,
+                      }))}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label='Rating' name='rating'>
+                    <InputNumber
+                      className='w-full'
+                      min={0}
+                      max={5}
+                      step={0.1}
+                      disabled={createLocked}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label='Đã bán' name='sold'>
+                    <InputNumber
+                      className='w-full'
+                      min={0}
+                      disabled={createLocked}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Form.Item label='Thumbnail URL' name='image'>
+                <Input disabled={createLocked} />
+              </Form.Item>
+              <Form.Item label='External link' name='external_link'>
+                <Input disabled={createLocked} />
+              </Form.Item>
+              <Form.Item label='External ID' name='external_id'>
+                <Input disabled={createLocked} />
+              </Form.Item>
+              <Form.Item label='Mô tả' name='description'>
+                <Input.TextArea rows={3} disabled={createLocked} />
+              </Form.Item>
+            </>
+          )}
         </Form>
       </Card>
     </div>

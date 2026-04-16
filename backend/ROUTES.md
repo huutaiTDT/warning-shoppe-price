@@ -21,7 +21,7 @@
   - Query params: `page`, `search`, `minPrice`, `maxPrice`, `minRating`, `shop`, `overOriginal`
 - `POST /products` - Create new product
   - Required: `name`, `priceMin`, `priceMax`, `shop_id`
-  - Optional: `image`, `aff_link`, `original_price`, `rating`, `sold`, `description`, `external_id`
+  - Optional: `image`, `external_link`, `original_price`, `rating`, `sold`, `description`, `external_id`
 - `GET /products/export` - Export products to Excel
 - `POST /products/import` - Import products from Excel
 
@@ -46,6 +46,13 @@ Product Management
 ├── POST   /api/products
 ├── GET    /api/products/export
 └── POST   /api/products/import
+
+Master Data - Brands
+├── GET    /api/master-data/brands
+├── GET    /api/master-data/brands/:id
+├── POST   /api/master-data/brands
+├── PUT    /api/master-data/brands/:id
+└── DELETE /api/master-data/brands/:id
 ```
 
 ## 📝 Example Requests

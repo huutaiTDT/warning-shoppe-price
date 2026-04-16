@@ -1,5 +1,6 @@
 /** @format */
 
+import axios from "axios";
 import ExcelJS from "exceljs";
 import { Router } from "express";
 import multer from "multer";
@@ -38,12 +39,14 @@ const normalizeProduct = (product) => {
     isAboveOriginal,
     shopId: product.shop_id,
     shopName: product.shops?.name || null,
+    shopCode: product.shops?.code || null,
+    shopPlatform: product.shops?.platform || null,
   };
 };
 
 const applyListFilters = (
   query,
-  { search, minPrice, maxPrice, minRating, shopId },
+  { search, minPrice, maxPrice, minRating, shopId, brand },
 ) => {
   let nextQuery = query;
 
@@ -65,6 +68,10 @@ const applyListFilters = (
 
   if (shopId) {
     nextQuery = nextQuery.eq("shop_id", shopId);
+  }
+
+  if (brand) {
+    nextQuery = nextQuery.ilike("brand", `%${brand}%`);
   }
 
   return nextQuery;
@@ -149,6 +156,75 @@ router.post("/import", upload.single("file"), async (req, res) => {
   }
 });
 
+// POST: Sync product info from Shopee link via external parser API
+router.post("/sync-from-link", async (req, res) => {
+  try {
+    const link = (req.body?.link || "").toString().trim();
+
+    if (!link) {
+      return res.status(400).json({ error: "Shopee link is required" });
+    }
+
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(link);
+    } catch {
+      return res.status(400).json({ error: "Invalid URL" });
+    }
+
+    if (!parsedUrl.hostname.includes("shopee.vn")) {
+      return res.status(400).json({ error: "Only Shopee links are supported" });
+    }
+
+    const externalBaseUrl =
+      process.env.EXTERNAL_PRODUCT_API_URL ||
+      "http://[::1]:3002/common/products";
+    const externalUrl = `${externalBaseUrl}/${encodeURIComponent(link)}`;
+
+    const { data } = await axios.get(externalUrl, {
+      headers: { Accept: "*/*" },
+      timeout: 30000,
+    });
+
+    const product = data?.product || {};
+    const priceMin = toNumber(product.priceMin ?? product.price_min, 0);
+    const priceMax = toNumber(product.priceMax ?? product.price_max, priceMin);
+    const normalized = {
+      name: product.name || "",
+      title: product.name || "",
+      brand: product.brand || null,
+      image: product.image || "",
+      thumbnail: product.image || "",
+      gallery: Array.isArray(product.gallery) ? product.gallery : [],
+      price: toNumber(product.price, priceMin),
+      priceMin,
+      priceMax,
+      priceOriginal: toNumber(
+        product.original_price ?? product.price_original,
+        0,
+      ),
+      rating: toNumber(product.rating, 0),
+      sold: toNumber(product.sold, 0),
+      description: product.description || "",
+      url: product.url || link,
+      external_link: product.url || link,
+      external_id: product.id ? String(product.id) : null,
+      raw: data,
+    };
+
+    res.json(normalized);
+  } catch (error) {
+    const status = error.response?.status || 500;
+    const detail =
+      error.response?.data?.message ||
+      error.message ||
+      "Failed to sync from link";
+
+    console.error("Error syncing product from link:", detail);
+    res.status(status).json({ error: detail });
+  }
+});
+
 // GET: List products with filters
 router.get("/", async (req, res) => {
   try {
@@ -159,17 +235,25 @@ router.get("/", async (req, res) => {
     const minRating =
       req.query.minRating ? parseFloat(req.query.minRating) : null;
     const shopId = (req.query.shop || "").toString();
+    const brand = (req.query.brand || "").toString().trim();
     const aboveOriginal = req.query.aboveOriginal == "true";
     const underOriginal = req.query.underOriginal == "true";
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 25, 1), 200);
     const offset = (page - 1) * limit;
 
-    const filterParams = { search, minPrice, maxPrice, minRating, shopId };
+    const filterParams = {
+      search,
+      minPrice,
+      maxPrice,
+      minRating,
+      shopId,
+      brand,
+    };
 
     if (aboveOriginal || underOriginal) {
       const baseQuery = supabase
         .from("products_aff")
-        .select("*, shops!shop_id(id, name)")
+        .select("*, shops!shop_id(id, name, code, platform)")
         .order("created_at", { ascending: false });
 
       const { data: allProducts, error } = await applyListFilters(
@@ -201,7 +285,7 @@ router.get("/", async (req, res) => {
 
     const query = supabase
       .from("products_aff")
-      .select("*, shops!shop_id(id, name)", { count: "exact" });
+      .select("*, shops!shop_id(id, name, code, platform)", { count: "exact" });
 
     const sortedQuery = applyListFilters(query, filterParams).order(
       "created_at",
@@ -241,7 +325,7 @@ router.get("/:id", async (req, res) => {
 
     const { data: product, error } = await supabase
       .from("products_aff")
-      .select("*, shops!shop_id(id, name)")
+      .select("*, shops!shop_id(id, name, code, platform)")
       .eq("id", id)
       .single();
 
@@ -267,11 +351,12 @@ router.post("/", async (req, res) => {
       rating,
       sold,
       image,
-      aff_link,
+      external_link,
       original_price,
       description,
       external_id,
       shop_id,
+      brand,
     } = req.body;
 
     if (!name || priceMin === undefined || priceMax === undefined) {
@@ -282,6 +367,15 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Shop ID required" });
     }
 
+    const exist = await supabase
+      .from("products_aff")
+      .select("id, external_id")
+      .eq("external_id", external_id || "")
+      .single();
+
+    if (exist.data) {
+      return res.status(400).json({ error: "External ID already exists" });
+    }
     const normalizedMin = toNumber(priceMin, 0);
     const normalizedMax = toNumber(priceMax, 0);
     const normalizedPrice =
@@ -300,10 +394,11 @@ router.post("/", async (req, res) => {
         rating: toNumber(rating, 0),
         sold: toNumber(sold, 0),
         image,
-        aff_link,
+        external_link,
         original_price: toNumber(original_price, 0),
         description,
         external_id,
+        brand,
         created_at: new Date(),
       })
       .select()
@@ -340,11 +435,12 @@ router.put("/:id", async (req, res) => {
       rating,
       sold,
       image,
-      aff_link,
+      external_link,
       original_price,
       description,
       external_id,
       shop_id,
+      brand,
     } = req.body;
 
     const updates = {
@@ -356,12 +452,13 @@ router.put("/:id", async (req, res) => {
       ...(rating !== undefined ? { rating: toNumber(rating, 0) } : {}),
       ...(sold !== undefined ? { sold: toNumber(sold, 0) } : {}),
       ...(image !== undefined ? { image } : {}),
-      ...(aff_link !== undefined ? { aff_link } : {}),
+      ...(external_link !== undefined ? { external_link } : {}),
       ...(original_price !== undefined ?
         { original_price: toNumber(original_price, 0) }
       : {}),
       ...(description !== undefined ? { description } : {}),
       ...(external_id !== undefined ? { external_id } : {}),
+      ...(brand !== undefined ? { brand } : {}),
       updated_at: new Date(),
     };
 
@@ -377,7 +474,7 @@ router.put("/:id", async (req, res) => {
       .from("products_aff")
       .update(updates)
       .eq("id", id)
-      .select("*, shops!shop_id(id, name)")
+      .select("*, shops!shop_id(id, name, code, platform)")
       .single();
 
     if (error) {

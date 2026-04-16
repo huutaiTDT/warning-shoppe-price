@@ -79,15 +79,21 @@ router.post("/:id/crawl", async (req, res) => {
     }
 
     // Call external crawl API
+    if (!process.env.EXTERNAL_CRAWL_API_URL) {
+      return res
+        .status(500)
+        .json({ error: "URL API crawl chưa được cấu hình" });
+    }
     let crawlData = null;
     try {
       const crawlResponse = await axios.post(
-        process.env.EXTERNAL_CRAWL_API_URL ||
-          "http://localhost:3000/common/shop-crawl-data",
-        {
-          url: shop.url,
-          shopId: shopId,
-        },
+        process.env.EXTERNAL_CRAWL_API_URL,
+        [
+          {
+            url: shop.url,
+            shopId: shopId,
+          },
+        ],
         {
           headers: {
             "Content-Type": "application/json",

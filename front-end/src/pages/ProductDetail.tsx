@@ -9,6 +9,7 @@ import {
   Card,
   Col,
   Image,
+  Popconfirm,
   Row,
   Space,
   Spin,
@@ -41,6 +42,18 @@ export default function ProductDetailPage() {
       navigate("/dashboard/products");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRemoveProduct = async () => {
+    if (!product?.id) return;
+
+    try {
+      await productsAPI.delete(product.id);
+      message.success("Xóa sản phẩm thành công");
+      navigate("/dashboard/products");
+    } catch (error) {
+      message.error("Không xóa được sản phẩm");
     }
   };
 
@@ -87,7 +100,7 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div className='space-y-4'>
+    <div className='space-y-4 overflow-hidden'>
       <div className='flex items-center justify-between gap-2'>
         <Space>
           <Button
@@ -100,12 +113,34 @@ export default function ProductDetailPage() {
           </h2>
         </Space>
 
-        <Button
-          type='primary'
-          icon={<Edit size={14} />}
-          onClick={() => navigate(`/dashboard/products/${product.id}/edit`)}>
-          Chỉnh sửa
-        </Button>
+        <Row>
+          <Button
+            style={{
+              marginRight: "10px",
+            }}
+            type='primary'
+            icon={<Edit size={14} />}
+            onClick={() => navigate(`/dashboard/products/${product.id}/edit`)}>
+            Chỉnh sửa
+          </Button>
+
+          <Popconfirm
+            title='Xóa sản phẩm?'
+            description='Hành động này không thể hoàn tác.'
+            okText='Xóa'
+            cancelText='Hủy'
+            okButtonProps={{ danger: true }}
+            onConfirm={handleRemoveProduct}>
+            <Button
+              style={{
+                marginRight: "10px",
+              }}
+              danger
+              icon={<AlertTriangle size={14} />}>
+              Xóa
+            </Button>
+          </Popconfirm>
+        </Row>
       </div>
 
       <Card className='bg-gray-800 border-gray-700'>
@@ -115,7 +150,7 @@ export default function ProductDetailPage() {
               src={product.thumbnail}
               alt={product.name}
               height={260}
-              width='100%'
+              width={260}
               className='rounded-md object-cover'
               fallback='data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
             />
@@ -145,7 +180,16 @@ export default function ProductDetailPage() {
             </Col>
             <Col span={12}>
               <div className='text-xs text-gray-400'>Shop</div>
-              <div className='text-sm'>{product.shopName || "Không rõ"}</div>
+              <div
+                className='text-sm text-blue-400 cursor-pointer hover:underline'
+                onClick={() => {
+                  if (product.shopId) {
+                    navigate(`/dashboard/shops/${product.shopId}`);
+                  }
+                }}>
+                {product.shopCode ? `[${product.shopCode}] ` : ""}
+                {product.shopName || "Không rõ"}
+              </div>
             </Col>
             <Col span={12}>
               <div className='text-xs text-gray-400'>Rating</div>

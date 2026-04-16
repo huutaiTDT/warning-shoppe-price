@@ -36,20 +36,24 @@ export default function LoginPage() {
 
   return (
     <div className='flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4'>
-      <div className='w-full max-w-sm'>
-        <div className='mb-8 text-center'>
-          <div className='inline-block mb-4 p-3 bg-emerald-600/20 rounded-full border border-emerald-600/30'>
+      <div
+        className='w-full max-w-md bg-slate-900 border border-slate-700'
+        style={{
+          padding: "10px",
+        }}>
+        <div className='mb-8 flex flex-col gap-4 text-center'>
+          <div className='flex justify-center items-center mb-4 p-3  rounded-full border border-emerald-600/30'>
             <Package size={40} className='text-emerald-400' />
           </div>
           <h1 className='text-3xl font-bold text-white mb-2'>
-            Quản lý Tiếp thị Liên kết
+            Quản lý Cảnh báo giá
           </h1>
           <p className='text-slate-400'>
             Hệ thống quản lý sản phẩm chuyên nghiệp
           </p>
         </div>
 
-        <Card className='bg-slate-900 border border-slate-700'>
+        <Card>
           {error && (
             <Alert message={error} type='error' showIcon className='mb-4' />
           )}
