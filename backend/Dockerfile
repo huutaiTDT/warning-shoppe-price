@@ -8,6 +8,9 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev
 
+# Copy environment file into the image so dotenv can load it at runtime.
+COPY .env .env
+
 # Copy runtime source
 COPY src ./src
 
