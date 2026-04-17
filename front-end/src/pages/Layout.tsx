@@ -1,5 +1,6 @@
 /** @format */
 
+import { useAuth } from "@/contexts/AuthContext";
 import { authAPI } from "@/services/api";
 import {
   DashboardOutlined,
@@ -31,6 +32,7 @@ export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, clearAuthSession } = useAuth();
 
   const breadcrumbItems = useMemo(() => {
     const path = location.pathname;
@@ -150,11 +152,11 @@ export default function DashboardLayout() {
   const handleLogout = async () => {
     try {
       await authAPI.logout();
-      localStorage.removeItem("auth_token");
+      clearAuthSession();
       message.success("Đã đăng xuất");
       navigate("/login");
     } catch (error) {
-      localStorage.removeItem("auth_token");
+      clearAuthSession();
       navigate("/login");
     }
   };
@@ -185,21 +187,31 @@ export default function DashboardLayout() {
       icon: <HistoryOutlined />,
       label: <Link to='/dashboard/crawl-history'>Lịch sử quét</Link>,
     },
-    {
-      key: "/dashboard/settings",
-      icon: <SettingOutlined />,
-      label: <Link to='/dashboard/settings'>Cài đặt</Link>,
-    },
-    {
-      key: "/dashboard/account-settings",
-      icon: <SettingOutlined />,
-      label: <Link to='/dashboard/account-settings'>Account Settings</Link>,
-    },
-    {
-      key: "/dashboard/post-schedules",
-      icon: <HistoryOutlined />,
-      label: <Link to='/dashboard/post-schedules'>Lịch bài viết</Link>,
-    },
+    ...(user?.is_aff ?
+      [
+        {
+          key: "/dashboard/settings",
+          icon: <SettingOutlined />,
+          label: <Link to='/dashboard/settings'>Cài đặt</Link>,
+        },
+        {
+          key: "/dashboard/account-settings",
+          icon: <SettingOutlined />,
+          label: <Link to='/dashboard/account-settings'>Account Settings</Link>,
+        },
+        {
+          key: "/dashboard/post-schedules",
+          icon: <HistoryOutlined />,
+          label: <Link to='/dashboard/post-schedules'>Lịch bài viết</Link>,
+        },
+      ]
+    : [
+        {
+          key: "/dashboard/settings",
+          icon: <SettingOutlined />,
+          label: <Link to='/dashboard/settings'>Cài đặt</Link>,
+        },
+      ]),
   ];
 
   const userMenu = {
@@ -261,9 +273,9 @@ export default function DashboardLayout() {
           <Dropdown menu={userMenu}>
             <div className='flex items-center gap-3 cursor-pointer hover:opacity-80'>
               <Avatar size='large' style={{ backgroundColor: "#10b981" }}>
-                A
+                {user?.username?.charAt(0)?.toUpperCase() || "A"}
               </Avatar>
-              <span className='text-white'>Admin</span>
+              <span className='text-white'>{user?.username || "Admin"}</span>
             </div>
           </Dropdown>
         </Header>

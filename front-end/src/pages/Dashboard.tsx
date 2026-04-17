@@ -16,14 +16,12 @@ import {
 import {
   BarChart3,
   ChevronRight,
-  CircleAlert,
   Package,
   Store,
-  Timer,
   TrendingDown,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 type StatModalKey =
   | "shops"
@@ -44,6 +42,7 @@ type ShopLinePoint = {
 };
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<any | null>(null);
   const [statModal, setStatModal] = useState<StatModalKey>(null);
@@ -263,7 +262,6 @@ export default function DashboardPage() {
     products: "Chi tiết theo Sản phẩm",
     crawls: "Tình trạng Crawl",
     under: "Sản phẩm dưới niêm yết",
-    above: "Sản phẩm cao hơn niêm yết",
     pending: "Crawl đang chờ",
   };
 
@@ -328,7 +326,7 @@ export default function DashboardPage() {
           <Card
             loading={loading}
             className='cursor-pointer'
-            onClick={() => setStatModal("under")}>
+            onClick={() => navigate("/dashboard/products?underOriginal=true")}>
             <Statistic
               title='Sản phẩm dưới niêm yết'
               value={stats.totalUnderPrice || 0}
@@ -336,39 +334,6 @@ export default function DashboardPage() {
             />
             <div className='mt-3 text-xs text-gray-400'>
               Có giá niêm yết: {stats.totalWithOriginalPrice || 0}
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={8}>
-          <Card
-            loading={loading}
-            className='cursor-pointer'
-            onClick={() => setStatModal("above")}>
-            <Statistic
-              title='Sản phẩm cao hơn niêm yết'
-              value={stats.totalAbovePrice || 0}
-              prefix={<CircleAlert size={18} className='text-red-500' />}
-            />
-            <div className='mt-3 text-xs text-gray-400'>
-              Cần theo dõi giá bán hiện tại
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={8}>
-          <Card
-            loading={loading}
-            className='cursor-pointer'
-            onClick={() => setStatModal("pending")}>
-            <Statistic
-              title='Crawl đang chờ'
-              value={crawlStatusSummary.pending || 0}
-              prefix={<Timer size={18} className='text-amber-500' />}
-            />
-            <div className='mt-3 text-xs text-gray-400'>
-              Completed: {crawlStatusSummary.completed || 0} | Failed:{" "}
-              {crawlStatusSummary.failed || 0}
             </div>
           </Card>
         </Col>

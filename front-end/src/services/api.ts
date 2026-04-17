@@ -1,6 +1,7 @@
 /** @format */
 
 import { emitApiToast } from "@/components/toast/hook";
+import { clearStoredAuthSession, getStoredAuthToken } from "@/lib/auth";
 import axios, { type AxiosRequestConfig } from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
@@ -15,7 +16,7 @@ const api = axios.create({
 // Request interceptor to add auth token if needed
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("auth_token");
+    const token = getStoredAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -31,7 +32,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("auth_token");
+      clearStoredAuthSession();
       window.location.href = "/login";
       return Promise.reject(error);
     }
@@ -81,6 +82,8 @@ export const shopsAPI = {
 export const productsAPI = {
   list: (page = 1, limit = 10, search?: string, filters?: any) =>
     api.get("/products", { params: { page, limit, search, ...filters } }),
+  countUnderOriginal: (filters?: any) =>
+    api.get("/products/under-original-count", { params: { ...filters } }),
   get: (id: string) => api.get(`/products/${id}`),
   getPriceHistory: (id: string, limit = 100) =>
     api.get(`/products/${id}/price-history`, { params: { limit } }),

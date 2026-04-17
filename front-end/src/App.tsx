@@ -2,7 +2,6 @@
 
 import { ConfigProvider } from "antd";
 import viVN from "antd/locale/vi_VN";
-import { useEffect, useState } from "react";
 import {
   Navigate,
   Route,
@@ -12,6 +11,7 @@ import {
 
 import Toast from "@/components/toast";
 import { useAppToastListener } from "@/components/toast/hook";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import AccountSettingsPage from "@/pages/AccountSettings";
 import BrandManager from "@/pages/BrandManager";
 import CrawlHistory from "@/pages/CrawlHistory";
@@ -28,14 +28,9 @@ import ProductForm from "./pages/ProductForm";
 import Products from "./pages/Products";
 // Private Route Component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { isAuthenticated, loading } = useAuth();
 
-  useEffect(() => {
-    const token = localStorage.getItem("auth_token");
-    setIsAuthenticated(!!token);
-  }, []);
-
-  if (isAuthenticated === null) {
+  if (loading) {
     return (
       <div className='flex items-center justify-center h-screen'>
         Loading...
@@ -44,6 +39,24 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   }
 
   return isAuthenticated ? children : <Navigate to='/login' />;
+}
+
+function AffRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading, isAuthenticated } = useAuth();
+
+  if (loading) {
+    return (
+      <div className='flex items-center justify-center h-screen'>
+        Loading...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to='/login' />;
+  }
+
+  return user?.is_aff ? children : <Navigate to='/dashboard' />;
 }
 
 export default function App() {
@@ -128,45 +141,57 @@ export default function App() {
 
   return (
     <ConfigProvider locale={viVN} theme={theme as any}>
-      <Toast />
-      <Router>
-        <Routes>
-          <Route path='/login' element={<Login />} />
+      <AuthProvider>
+        <Toast />
+        <Router>
+          <Routes>
+            <Route path='/login' element={<Login />} />
 
-          <Route
-            path='/dashboard'
-            element={
-              <PrivateRoute>
-                <DashboardLayout />
-              </PrivateRoute>
-            }>
-            <Route index element={<Dashboard />} />
-            <Route path='shops' element={<Shops />} />
-            <Route path='shops/new' element={<ShopForm />} />
-            <Route path='shops/:id' element={<ShopForm />} />
-            <Route path='products' element={<Products />} />
-            <Route path='products/new' element={<ProductForm />} />
-            <Route path='products/:id' element={<ProductDetail />} />
-            <Route path='products/:id/edit' element={<ProductForm />} />
-            <Route path='crawl-history' element={<CrawlHistory />} />
-            <Route path='brands' element={<BrandManager />} />
-            <Route path='account-settings' element={<AccountSettingsPage />} />
-            <Route path='post-schedules' element={<PostSchedulesPage />} />
             <Route
-              path='post-schedules/new'
-              element={<PostScheduleFormPage />}
-            />
-            <Route
-              path='post-schedules/:id/edit'
-              element={<PostScheduleFormPage />}
-            />
-            <Route path='settings' element={<Settings />} />
-          </Route>
+              path='/dashboard'
+              element={
+                <PrivateRoute>
+                  <DashboardLayout />
+                </PrivateRoute>
+              }>
+              <Route index element={<Dashboard />} />
+              <Route path='shops' element={<Shops />} />
+              <Route path='shops/new' element={<ShopForm />} />
+              <Route path='shops/:id' element={<ShopForm />} />
+              <Route path='products' element={<Products />} />
+              <Route path='products/new' element={<ProductForm />} />
+              <Route path='products/:id' element={<ProductDetail />} />
+              <Route path='products/:id/edit' element={<ProductForm />} />
+              <Route path='crawl-history' element={<CrawlHistory />} />
+              <Route path='brands' element={<BrandManager />} />
+              <Route
+                element={
+                  <AffRoute>
+                    <></>
+                  </AffRoute>
+                }>
+                <Route
+                  path='account-settings'
+                  element={<AccountSettingsPage />}
+                />
+                <Route path='post-schedules' element={<PostSchedulesPage />} />
+                <Route
+                  path='post-schedules/new'
+                  element={<PostScheduleFormPage />}
+                />
+                <Route
+                  path='post-schedules/:id/edit'
+                  element={<PostScheduleFormPage />}
+                />
+              </Route>
+              <Route path='settings' element={<Settings />} />
+            </Route>
 
-          <Route path='/' element={<Navigate to='/dashboard' />} />
-          <Route path='*' element={<Navigate to='/dashboard' />} />
-        </Routes>
-      </Router>
+            <Route path='/' element={<Navigate to='/dashboard' />} />
+            <Route path='*' element={<Navigate to='/dashboard' />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
     </ConfigProvider>
   );
 }

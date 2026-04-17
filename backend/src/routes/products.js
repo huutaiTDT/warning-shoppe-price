@@ -77,6 +77,51 @@ const applyListFilters = (
   return nextQuery;
 };
 
+// GET: Count products under original price (DB-based)
+router.get("/under-original-count", async (req, res) => {
+  try {
+    const search = (req.query.search || "").toString().trim();
+    const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : null;
+    const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : null;
+    const minRating =
+      req.query.minRating ? parseFloat(req.query.minRating) : null;
+    const shopId = (req.query.shop || "").toString();
+    const brand = (req.query.brand || "").toString().trim();
+
+    const filterParams = {
+      search,
+      minPrice,
+      maxPrice,
+      minRating,
+      shopId,
+      brand,
+    };
+
+    const baseQuery = supabase
+      .from("products_aff")
+      .select("id, price, price_min, price_max, original_price");
+
+    const { data: products, error } = await applyListFilters(
+      baseQuery,
+      filterParams,
+    );
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    const count = (products || []).reduce((acc, product) => {
+      const normalized = normalizeProduct(product);
+      return normalized.isUnderOriginal ? acc + 1 : acc;
+    }, 0);
+
+    return res.json({ count });
+  } catch (error) {
+    console.error("Error counting products under original price:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // GET: Export products to Excel (must be before GET /)
 router.get("/export", async (req, res) => {
   try {

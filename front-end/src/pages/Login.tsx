@@ -1,5 +1,6 @@
 /** @format */
 
+import { useAuth } from "@/contexts/AuthContext";
 import { authAPI } from "@/services/api";
 import { Alert, Button, Card, Form, Input, message } from "antd";
 import { LogIn, Package } from "lucide-react";
@@ -8,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { setAuthSession } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form] = Form.useForm();
@@ -21,7 +23,7 @@ export default function LoginPage() {
       const data = res.data;
 
       if (data.user?.token) {
-        localStorage.setItem("auth_token", data?.user?.token);
+        setAuthSession(data.user);
         message.success("Đăng nhập thành công");
         navigate("/dashboard");
       }
@@ -35,7 +37,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className='flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4'>
+    <div className='flex min-h-screen items-center justify-center bg-linear-to-br from-slate-900 to-slate-800 px-4'>
       <div
         className='w-full max-w-md bg-slate-900 border border-slate-700'
         style={{

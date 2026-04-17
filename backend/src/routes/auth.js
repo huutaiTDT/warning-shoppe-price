@@ -29,9 +29,18 @@ router.post("/login", async (req, res) => {
     //   return res.status(401).json({ error: "Invalid credentials" });
     // }
     // In production, validate password hash
+    const userDto = {
+      token: user.id,
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      created_at: user.created_at,
+      is_aff: Boolean(user.is_aff),
+    };
+
     res.json({
       success: true,
-      user: { token: user.id, id: user.id, username: user.username },
+      user: userDto,
     });
   } catch (error) {
     console.error("Login error:", error);

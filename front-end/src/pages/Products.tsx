@@ -42,26 +42,76 @@ import {
   Upload as UploadIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 type ViewMode = "table" | "grid";
 
+const FILTER_STORAGE_KEY = "products_page_filters_v1";
+
+type ProductFilterState = {
+  search: string;
+  minPrice: number | null;
+  maxPrice: number | null;
+  minRating: number | null;
+  shopFilter?: string;
+  brandFilter?: string;
+  underOriginal: boolean;
+};
+
+const readSavedFilters = (): ProductFilterState | null => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(FILTER_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    return {
+      search: typeof parsed.search === "string" ? parsed.search : "",
+      minPrice: typeof parsed.minPrice === "number" ? parsed.minPrice : null,
+      maxPrice: typeof parsed.maxPrice === "number" ? parsed.maxPrice : null,
+      minRating: typeof parsed.minRating === "number" ? parsed.minRating : null,
+      shopFilter:
+        typeof parsed.shopFilter === "string" ? parsed.shopFilter : undefined,
+      brandFilter:
+        typeof parsed.brandFilter === "string" ? parsed.brandFilter : undefined,
+      underOriginal: Boolean(parsed.underOriginal),
+    };
+  } catch {
+    return null;
+  }
+};
+
 export default function ProductsPage() {
+  const location = useLocation();
   const navigate = useNavigate();
+  const savedFilters = readSavedFilters();
   const [products, setProducts] = useState<any[]>([]);
   const [shops, setShops] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [brandLoading, setBrandLoading] = useState(false);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(savedFilters?.search || "");
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20 });
   const [total, setTotal] = useState(0);
-  const [minPrice, setMinPrice] = useState<number | null>(null);
-  const [maxPrice, setMaxPrice] = useState<number | null>(null);
-  const [minRating, setMinRating] = useState<number | null>(null);
-  const [shopFilter, setShopFilter] = useState<string | undefined>(undefined);
-  const [brandFilter, setBrandFilter] = useState<string | undefined>(undefined);
-  const [underOriginal, setUnderOriginal] = useState(false);
+  const [minPrice, setMinPrice] = useState<number | null>(
+    savedFilters?.minPrice ?? null,
+  );
+  const [maxPrice, setMaxPrice] = useState<number | null>(
+    savedFilters?.maxPrice ?? null,
+  );
+  const [minRating, setMinRating] = useState<number | null>(
+    savedFilters?.minRating ?? null,
+  );
+  const [shopFilter, setShopFilter] = useState<string | undefined>(
+    savedFilters?.shopFilter,
+  );
+  const [brandFilter, setBrandFilter] = useState<string | undefined>(
+    savedFilters?.brandFilter,
+  );
+  const [underOriginal, setUnderOriginal] = useState(
+    savedFilters?.underOriginal ?? false,
+  );
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize));
   const [progress, setProgress] = useState<{
@@ -77,6 +127,7 @@ export default function ProductsPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyProduct, setHistoryProduct] = useState<any | null>(null);
   const [priceHistory, setPriceHistory] = useState<any[]>([]);
+  const [underOriginalCount, setUnderOriginalCount] = useState(0);
   const fakeProgressRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopFakeProgress = () => {
@@ -129,6 +180,27 @@ export default function ProductsPage() {
     }
   };
 
+  const fetchUnderOriginalCount = async () => {
+    try {
+      const filters = {
+        minPrice: minPrice ?? undefined,
+        maxPrice: maxPrice ?? undefined,
+        minRating: minRating ?? undefined,
+        shop: shopFilter,
+        brand: brandFilter,
+      };
+
+      const res = await productsAPI.countUnderOriginal({
+        search: search || undefined,
+        ...filters,
+      });
+
+      setUnderOriginalCount(Number(res.data?.count || 0));
+    } catch (error) {
+      setUnderOriginalCount(0);
+    }
+  };
+
   const fetchShops = async () => {
     try {
       const res = await shopsAPI.list(1, 1000);
@@ -167,6 +239,42 @@ export default function ProductsPage() {
     fetchShops();
     fetchBrands();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const underOriginalParam = params.get("underOriginal");
+    if (underOriginalParam !== null) {
+      setUnderOriginal(underOriginalParam === "true");
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const payload: ProductFilterState = {
+      search,
+      minPrice,
+      maxPrice,
+      minRating,
+      shopFilter,
+      brandFilter,
+      underOriginal,
+    };
+
+    window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(payload));
+  }, [
+    search,
+    minPrice,
+    maxPrice,
+    minRating,
+    shopFilter,
+    brandFilter,
+    underOriginal,
+  ]);
+
+  useEffect(() => {
+    fetchUnderOriginalCount();
+  }, [search, minPrice, maxPrice, minRating, shopFilter, brandFilter]);
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, page: 1 }));
@@ -436,7 +544,13 @@ export default function ProductsPage() {
           return <span className='text-gray-500'>Không rõ</span>;
         }
         return (
-          <div className='flex flex-col gap-1'>
+          <div
+            className='flex flex-col gap-1'
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              navigate(`/dashboard/shops/${shopId}`);
+            }}>
             <ShopSnapshotPopover
               shopId={shopId}
               shopCode={record.shopCode}
@@ -444,7 +558,11 @@ export default function ProductsPage() {
               shopPlatform={record.shopPlatform}>
               <span
                 className='font-semibold text-blue-500 cursor-pointer hover:underline'
-                onClick={() => navigate(`/dashboard/shops/${shopId}`)}>
+                onClick={(event) => {
+                  event.stopPropagation();
+                  event.preventDefault();
+                  navigate(`/dashboard/shops/${shopId}`);
+                }}>
                 {record.shopCode ? `[${record.shopCode}]` : ""}{" "}
                 {record.shopName || "Không rõ"}
               </span>
@@ -673,24 +791,37 @@ export default function ProductsPage() {
         </Upload>
       </div>
 
+      {underOriginalCount > 0 && (
+        <Alert
+          type={underOriginal ? "error" : "error"}
+          showIcon
+          className='bg-red-300'
+          message={`Có ${underOriginalCount} sản phẩm đang dưới giá niêm yết`}
+          action={
+            !underOriginal ?
+              <Button
+                size='small'
+                type='link'
+                onClick={() => {
+                  setUnderOriginal(true);
+                }}>
+                Lọc ngay
+              </Button>
+            : undefined
+          }
+        />
+      )}
+
       {underOriginal && (
         <Alert
           type='warning'
           showIcon
-          message='Đang lọc sản phẩm có giá Shopee cao hơn giá niêm yết'
+          message='Đang lọc sản phẩm có giá Shopee dưới giá niêm yết'
         />
       )}
 
       <div className='flex-1 overflow-hidden flex flex-col'>
         <div className='flex-1 overflow-auto'>
-          {products.length > 0 && (
-            <Alert
-              type='info'
-              showIcon
-              className='mb-3'
-              message={`Có ${products.filter((p) => p.priceOriginal && p.priceOriginal > 0 && p.priceMin > p.priceOriginal).length} sản phẩm có giá cao hơn giá niêm yết`}
-            />
-          )}
           {viewMode === "table" ?
             <Table
               columns={columns}
