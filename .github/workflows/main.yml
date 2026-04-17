@@ -36,7 +36,8 @@ jobs:
       - name: Create .env file
         run: |
           cd backend
-          cat <<EOF > .env
+          printf "%b" "${{ vars.ENV }}" > /backend/.env
+          cat <<EOF > /backend/.env
           ${{vars.ENV}}
           EOF
 
