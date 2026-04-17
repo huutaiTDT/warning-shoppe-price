@@ -25,15 +25,33 @@ import { startPostScheduler } from "./services/postScheduler.js";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://warning-shoppe-price.vercel.app",
+  ...(process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : []),
+  ...(process.env.CORS_ORIGINS ?
+    process.env.CORS_ORIGINS.split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  : []),
+];
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+};
+
 // Middleware
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
-app.use(
-  cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
-    credentials: true,
-  }),
-);
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // Health check
 app.get("/health", (req, res) => {
