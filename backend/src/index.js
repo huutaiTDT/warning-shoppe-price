@@ -11,13 +11,16 @@ import cors from "cors";
 import express from "express";
 
 // Import routes
+import accountSettingsRoutes from "./routes/accountSettings.js";
 import authRoutes from "./routes/auth.js";
 import brandsRoutes from "./routes/brands.js";
 import crawlRoutes from "./routes/crawl.js";
 import crawlHistoryRoutes from "./routes/crawlHistory.js";
 import dashboardRoutes from "./routes/dashboard.js";
+import postSchedulesRoutes from "./routes/postSchedules.js";
 import productsRoutes from "./routes/products.js";
 import shopsRoutes from "./routes/shops.js";
+import { startPostScheduler } from "./services/postScheduler.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -45,6 +48,8 @@ app.use("/products", productsRoutes);
 app.use("/crawl-history", crawlHistoryRoutes);
 app.use("/master-data/brands", brandsRoutes);
 app.use("/dashboard", dashboardRoutes);
+app.use("/account-settings", accountSettingsRoutes);
+app.use("/post-schedules", postSchedulesRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -58,6 +63,7 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
+  startPostScheduler();
   console.log(`✓ Backend running on http://localhost:${PORT}`);
   console.log(`✓ Frontend should connect to http://localhost:${PORT}/api`);
 });

@@ -82,6 +82,8 @@ export const productsAPI = {
   list: (page = 1, limit = 10, search?: string, filters?: any) =>
     api.get("/products", { params: { page, limit, search, ...filters } }),
   get: (id: string) => api.get(`/products/${id}`),
+  getPriceHistory: (id: string, limit = 100) =>
+    api.get(`/products/${id}/price-history`, { params: { limit } }),
   create: (data: any) => api.post("/products", data),
   syncFromLink: (link: string) =>
     api.post("/products/sync-from-link", { link }),
@@ -109,6 +111,28 @@ export const crawlHistoryAPI = {
 // Dashboard APIs
 export const dashboardAPI = {
   getOverview: () => api.get("/dashboard/overview"),
+};
+
+// Account Settings APIs
+export const accountSettingsAPI = {
+  list: (page = 1, limit = 20, search?: string, platform?: string) =>
+    api.get("/account-settings", { params: { page, limit, search, platform } }),
+  get: (id: string) => api.get(`/account-settings/${id}`),
+  create: (data: any) => api.post("/account-settings", data),
+  update: (id: string, data: any) => api.put(`/account-settings/${id}`, data),
+  delete: (id: string) => api.delete(`/account-settings/${id}`),
+};
+
+// Post Schedules APIs
+export const postSchedulesAPI = {
+  list: (page = 1, limit = 20, search?: string, status?: string) =>
+    api.get("/post-schedules", { params: { page, limit, search, status } }),
+  get: (id: string) => api.get(`/post-schedules/${id}`),
+  create: (data: any) => api.post("/post-schedules", data),
+  update: (id: string, data: any) => api.put(`/post-schedules/${id}`, data),
+  delete: (id: string) => api.delete(`/post-schedules/${id}`),
+  processDue: () => api.post("/post-schedules/process-due"),
+  processNow: (id: string) => api.post(`/post-schedules/${id}/process`),
 };
 
 // Master Data - Brands APIs

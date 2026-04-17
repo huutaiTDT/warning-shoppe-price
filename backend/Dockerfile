@@ -1,25 +1,16 @@
-# Backend Dockerfile
-
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies
-COPY package*.json ./
-RUN npm install --production && npm install -g ts-node typescript
-
-# Copy application code
-COPY src ./src
-COPY tsconfig.json ./
-
-# Build TypeScript
-RUN npm run build
-
-# Expose port
-EXPOSE 3001
-
-# Set environment
 ENV NODE_ENV=production
 
-# Start application
-CMD ["npm", "start"]
+# Install only production dependencies for smaller image size.
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Copy runtime source
+COPY src ./src
+
+EXPOSE 3001
+
+CMD ["node", "src/index.js"]

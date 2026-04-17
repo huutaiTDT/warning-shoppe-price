@@ -9,9 +9,11 @@ import {
   Button,
   Card,
   Col,
+  Divider,
   Image,
   Input,
   InputNumber,
+  Modal,
   Popconfirm,
   Row,
   Select,
@@ -22,11 +24,13 @@ import {
   Upload,
   message,
 } from "antd";
+import dayjs from "dayjs";
 import {
   AlertTriangle,
   Download,
   Edit,
   Grid3X3,
+  History,
   ImportIcon,
   LayoutList,
   OutdentIcon,
@@ -69,6 +73,10 @@ export default function ProductsPage() {
     percent: 0,
     visible: false,
   });
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyProduct, setHistoryProduct] = useState<any | null>(null);
+  const [priceHistory, setPriceHistory] = useState<any[]>([]);
   const fakeProgressRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopFakeProgress = () => {
@@ -287,6 +295,22 @@ export default function ProductsPage() {
     return false;
   };
 
+  const handleViewPriceHistory = async (record: any) => {
+    try {
+      setHistoryProduct(record);
+      setHistoryOpen(true);
+      setHistoryLoading(true);
+
+      const res = await productsAPI.getPriceHistory(record.id, 200);
+      setPriceHistory(res.data.items || []);
+    } catch (error) {
+      message.error("Không tải được lịch sử giá");
+      setPriceHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   const FloatingProgress = () => {
     if (!progress.visible) return null;
 
@@ -338,14 +362,14 @@ export default function ProductsPage() {
             <div
               className={`
               h-2 rounded transition-all duration-300
-              ${isDone ? "bg-green-500" : "bg-gradient-to-r from-blue-500 to-emerald-400"}
+              ${isDone ? "bg-green-500" : "bg-linear-to-r from-blue-500 to-emerald-400"}
             `}
               style={{ width: `${progress.percent}%` }}
             />
 
             {/* shimmer effect */}
             {!isDone && (
-              <div className='absolute inset-0 animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent' />
+              <div className='absolute inset-0 animate-[shimmer_1.5s_infinite] bg-linear-to-r from-transparent via-white/10 to-transparent' />
             )}
           </div>
 
@@ -450,10 +474,10 @@ export default function ProductsPage() {
       width: 120,
       render: (price: number) =>
         price > 0 ?
-          <span className='text-gray-400 line-through text-sm'>
+          <span className='text-emerald-500  text-sm'>
             {formatPrice(price)}
           </span>
-        : <span className='text-gray-500 text-xs'>Chưa có</span>,
+        : <span className='text-red-500 text-xs'>Chưa có</span>,
     },
     {
       title: "Chênh lệch",
@@ -494,7 +518,7 @@ export default function ProductsPage() {
     {
       title: "Actions",
       key: "actions",
-      width: 100,
+      width: 160,
       fixed: "right" as const,
       render: (_: any, record: any) => (
         <Space size='large'>
@@ -504,6 +528,14 @@ export default function ProductsPage() {
             onClick={(event) => {
               event.stopPropagation();
               navigate(`/dashboard/products/${record.id}/edit`);
+            }}
+          />
+          <Button
+            size='large'
+            icon={<History size={14} />}
+            onClick={(event) => {
+              event.stopPropagation();
+              handleViewPriceHistory(record);
             }}
           />
           <Popconfirm
@@ -776,6 +808,56 @@ export default function ProductsPage() {
         </div>
       </div>
       <FloatingProgress />
+
+      <Modal
+        title={`Lịch sử giá: ${historyProduct?.name || "Sản phẩm"}`}
+        open={historyOpen}
+        onCancel={() => setHistoryOpen(false)}
+        footer={null}
+        width={960}>
+        <div className='mb-3'>
+          <span className='text-xs text-gray-400'>
+            Tổng {priceHistory.length} bản ghi
+          </span>
+          <Divider className='my-2 border-gray-700' />
+        </div>
+
+        <Table
+          loading={historyLoading}
+          rowKey='id'
+          dataSource={priceHistory}
+          pagination={{ pageSize: 12, showSizeChanger: false }}
+          scroll={{ x: 900 }}
+          columns={[
+            {
+              title: "Thời điểm",
+              dataIndex: "crawledAt",
+              key: "crawledAt",
+              width: 180,
+              render: (value: string) =>
+                value ? dayjs(value).format("DD/MM/YYYY HH:mm:ss") : "-",
+            },
+            {
+              title: "Giá min",
+              dataIndex: "priceMin",
+              key: "priceMin",
+              width: 130,
+              render: (value: number) => (
+                <span className='text-emerald-500'>{formatPrice(value)}</span>
+              ),
+            },
+            {
+              title: "Giá max",
+              dataIndex: "priceMax",
+              key: "priceMax",
+              width: 130,
+              render: (value: number) => (
+                <span className='text-emerald-500'>{formatPrice(value)}</span>
+              ),
+            },
+          ]}
+        />
+      </Modal>
     </div>
   );
 }

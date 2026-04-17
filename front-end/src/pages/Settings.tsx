@@ -75,6 +75,23 @@ export default function SettingsPage() {
           </Link>
         </div>
       </Card>
+
+      <Card className='bg-gray-800 border-gray-700'>
+        <h2 className='text-white text-base font-semibold m-0'>
+          AFF Automation
+        </h2>
+        <p className='text-gray-300 text-sm mt-2 mb-4'>
+          Cấu hình account đăng bài và lập lịch tự động publish đa nền tảng.
+        </p>
+        <div className='flex gap-2 flex-wrap'>
+          <Link to='/dashboard/account-settings'>
+            <Button>Account Settings</Button>
+          </Link>
+          <Link to='/dashboard/post-schedules'>
+            <Button type='primary'>Lịch bài viết</Button>
+          </Link>
+        </div>
+      </Card>
     </div>
   );
 }

@@ -340,6 +340,57 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// GET: Product price history
+router.get("/:id/price-history", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 100, 1), 500);
+
+    const { data: history, error } = await supabase
+      .from("product_price_history")
+      .select(
+        "id, product_id, price_min, price_max, price_original, rating, sold_count, crawled_at, created_at",
+      )
+      .eq("product_id", id)
+      .order("crawled_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    const items = (history || []).map((item) => {
+      const min = toNumber(item.price_min, 0);
+      const max = toNumber(item.price_max, 0);
+      const original = toNumber(item.price_original, 0);
+      const avg = (min + max) / 2;
+
+      return {
+        id: item.id,
+        productId: item.product_id,
+        priceMin: min,
+        priceMax: max,
+        priceOriginal: original,
+        shopeeAvgPrice: avg,
+        priceDelta: avg - original,
+        rating: toNumber(item.rating, 0),
+        soldCount: Number(item.sold_count || 0),
+        crawledAt: item.crawled_at,
+        createdAt: item.created_at,
+      };
+    });
+
+    res.json({
+      productId: id,
+      items,
+      total: items.length,
+    });
+  } catch (error) {
+    console.error("Error fetching product price history:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // POST: Create product
 router.post("/", async (req, res) => {
   try {

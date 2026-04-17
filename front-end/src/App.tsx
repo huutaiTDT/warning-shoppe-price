@@ -12,11 +12,14 @@ import {
 
 import Toast from "@/components/toast";
 import { useAppToastListener } from "@/components/toast/hook";
+import AccountSettingsPage from "@/pages/AccountSettings";
 import BrandManager from "@/pages/BrandManager";
 import CrawlHistory from "@/pages/CrawlHistory";
 import Dashboard from "@/pages/Dashboard";
 import DashboardLayout from "@/pages/Layout";
 import Login from "@/pages/Login";
+import PostScheduleFormPage from "@/pages/PostScheduleForm";
+import PostSchedulesPage from "@/pages/PostSchedules";
 import ProductDetail from "@/pages/ProductDetail";
 import Settings from "@/pages/Settings";
 import ShopForm from "@/pages/ShopForm";
@@ -51,7 +54,7 @@ export default function App() {
       colorBgBase: "#101828",
       colorPrimary: "#10b981",
       colorBgContainer: "#1f2937",
-      colorBorder: "#374151",
+      colorBorder: "#1f2937",
       colorOutline: "#1f2937",
       colorRing: "#10b981",
       colorTextBase: "#fff",
@@ -93,10 +96,16 @@ export default function App() {
       colorItemHover: "#1f2937",
       colorItemActive: "#10b981",
       colorItemSelected: "#10b981",
-      colorTooltipBg: "#374151",
     },
 
     components: {
+      Input: {
+        colorBgHover: "#1f2937",
+        colorBorderHover: "#10b981",
+        colorBorderFocus: "#10b981",
+        colorBgFocus: "#1f2937",
+        colorBgActive: "#1f2937",
+      },
       Select: {
         optionSelectedBg: "#22c55e20",
         optionActiveBg: "#22c55e10",
@@ -114,17 +123,11 @@ export default function App() {
         primaryShadow: "0 4px 12px rgba(34,197,94,0.5)",
         dangerShadow: "0 4px 12px rgba(255,0,0,0.4)",
       },
-      Input: {
-        boxShadow: "0 4px 12px rgba(34,197,94,0.4)",
-        primaryShadow: "0 4px 12px rgba(34,197,94,0.5)",
-        dangerShadow: "0 4px 12px rgba(255,0,0,0.4)",
-        colorBorderHover: "#22c55e",
-      },
     },
   };
 
   return (
-    <ConfigProvider locale={viVN} theme={theme}>
+    <ConfigProvider locale={viVN} theme={theme as any}>
       <Toast />
       <Router>
         <Routes>
@@ -147,6 +150,16 @@ export default function App() {
             <Route path='products/:id/edit' element={<ProductForm />} />
             <Route path='crawl-history' element={<CrawlHistory />} />
             <Route path='brands' element={<BrandManager />} />
+            <Route path='account-settings' element={<AccountSettingsPage />} />
+            <Route path='post-schedules' element={<PostSchedulesPage />} />
+            <Route
+              path='post-schedules/new'
+              element={<PostScheduleFormPage />}
+            />
+            <Route
+              path='post-schedules/:id/edit'
+              element={<PostScheduleFormPage />}
+            />
             <Route path='settings' element={<Settings />} />
           </Route>
 

@@ -114,6 +114,36 @@ export default function DashboardLayout() {
       ];
     }
 
+    if (path === "/dashboard/account-settings") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: "Account Settings" },
+      ];
+    }
+
+    if (path === "/dashboard/post-schedules") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: "Lịch bài viết" },
+      ];
+    }
+
+    if (path === "/dashboard/post-schedules/new") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: <Link to='/dashboard/post-schedules'>Lịch bài viết</Link> },
+        { title: "Tạo lịch bài viết" },
+      ];
+    }
+
+    if (/^\/dashboard\/post-schedules\/[^/]+\/edit$/.test(path)) {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: <Link to='/dashboard/post-schedules'>Lịch bài viết</Link> },
+        { title: "Cập nhật lịch bài viết" },
+      ];
+    }
+
     return [{ title: "Tổng quan" }];
   }, [location.pathname]);
 
@@ -159,6 +189,16 @@ export default function DashboardLayout() {
       key: "/dashboard/settings",
       icon: <SettingOutlined />,
       label: <Link to='/dashboard/settings'>Cài đặt</Link>,
+    },
+    {
+      key: "/dashboard/account-settings",
+      icon: <SettingOutlined />,
+      label: <Link to='/dashboard/account-settings'>Account Settings</Link>,
+    },
+    {
+      key: "/dashboard/post-schedules",
+      icon: <HistoryOutlined />,
+      label: <Link to='/dashboard/post-schedules'>Lịch bài viết</Link>,
     },
   ];
 

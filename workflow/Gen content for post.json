@@ -1,0 +1,482 @@
+{
+  "name": "Gen content for post",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gen-post",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "bb443468-244d-4033-8b88-082a78d4bead",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        400
+      ],
+      "webhookId": "1c8ffc3b-2ed3-4f67-b381-e447dc7ffb9b"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "affLink",
+              "value": "={{ $json.body.affLink }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "type",
+              "value": "={{ $json.body.type }}",
+              "type": "number"
+            },
+            {
+              "id": "3",
+              "name": "product",
+              "value": "={{ $json.body.raw }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9b8deee7-f67c-4613-a010-fa76fdcca77b",
+      "name": "Clean Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        464,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $input.first().json.product || {};\n\nfunction formatPrice(price) {\n  if (!price) return \"\";\n  return price.toLocaleString(\"vi-VN\") + \"đ\";\n}\n\nlet priceLevel = \"tầm trung\";\nif (p.price < 1000000) priceLevel = \"giá rẻ\";\nelse if (p.price > 5000000) priceLevel = \"cao cấp\";\n\nreturn [\n  {\n    json: {\n      affLink: $input.first().json.affLink,\n      type: Number($input.first().json.type),\n      name: p.name || \"\",\n      price: formatPrice(p.price),\n      brand: p.brand || \"\",\n      rating: p.rating || 0,\n      priceLevel,\n      gallery: p.gallery || [],\n      description: p.description\n    }\n  }\n];"
+      },
+      "id": "c3232a13-78ec-49c7-b893-44fb126391b5",
+      "name": "Normalize Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"data\": $json, \"status\": 200 } }}",
+        "options": {}
+      },
+      "id": "8e660ce5-5b73-4a10-aa3f-ee49fb0de3b8",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2160,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash-lite",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash-lite"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {
+          "maxOutputTokens": 2048,
+          "temperature": 0.7
+        }
+      },
+      "id": "20ed949f-5b13-4ac0-8035-ad429e122fec",
+      "name": "Call Gemini API",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1584,
+        400
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "oPEWG0kpU2Bx6vVR",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json;\nconst normalizedData = $(\"Normalize Data\").first().json;\n\nlet parsedContent;\ntry {\n  const textContent = aiOutput.content?.parts?.[0]?.text || \"\";\n  parsedContent = JSON.parse(textContent);\n} catch (e) {\n  parsedContent = { post: { content: \"\", hashtags: \"\", closing: \"\", galleries: [] }, comments: [] };\n}\n\nreturn [\n  {\n    json: {\n      post: {\n        content: parsedContent.post?.content || \"\",\n        hashtags: parsedContent.post?.hashtags || \"\",\n        closing: parsedContent.post?.closing || \"\",\n        galleries: (parsedContent.post?.galleries && parsedContent.post.galleries.length > 0) ? parsedContent.post.galleries : normalizedData.gallery\n      },\n      comments: parsedContent.comments   || [],\n      productInfo: {\n        name: normalizedData.name,\n        price: normalizedData.price,\n        brand: normalizedData.brand,\n        rating: normalizedData.rating,\n        priceLevel: normalizedData.priceLevel,\n        affLink: normalizedData.affLink,\n        type: normalizedData.type,\n        description: normalizedData.description\n      }\n    }\n  }\n];"
+      },
+      "id": "7f3c3112-57ae-41ea-a3bc-f34fe406651a",
+      "name": "Merge Galleries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": 1,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Threads"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": 2,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Facebook"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": 3,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Instagram"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": 4,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TikTok"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0be23e2e-db29-4cbf-869e-2ddbc0472e67",
+      "name": "Route by Platform",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        912,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst prompt = \"Bạn là content creator affiliate tại Việt Nam.\\n\\nTrả về DUY NHẤT JSON hợp lệ, không markdown.\\n\\nSchema:\\n{\\n  \\\"post\\\": {\\n    \\\"content\\\": \\\"string\\\",\\n    \\\"hashtags\\\": \\\"string\\\",\\n    \\\"closing\\\": \\\"string\\\",\\n    \\\"galleries\\\": []\\n  },\\n  \\\"comments\\\": [\\\"string\\\", \\\"string\\\"]\\n}\\n\\nQuy tắc chung:\\n- Comment phải chứa link\\n- Văn phong tự nhiên, gần gũi\\n\\nQuy tắc cho Threads:\\n- Nội dung ngắn gọn, súc tích (100-200 từ)\\n- Hashtag tối đa 3-5 cái\\n- Tập trung vào insight, trải nghiệm cá nhân\\n\\nDữ liệu sản phẩm:\\nTên: \" + data.name + \"\\nGiá: \" + data.price + \"\\nBrand: \" + data.brand + \"\\nRating: \" + data.rating + \"\\nPhân khúc: \" + data.priceLevel + \"\\nLink: \" + data.affLink;\n\nreturn [{ json: { prompt, ...data } }];"
+      },
+      "id": "c2b6ba2c-74fd-4ed0-85a3-566def573589",
+      "name": "Build Threads Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        112
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c36845f8-a62b-429a-bdf2-2818af819bc4",
+      "name": "Merge Prompts",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1360,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst prompt = \"Bạn là content creator affiliate tại Việt Nam.\\n\\nTrả về DUY NHẤT JSON hợp lệ, không markdown.\\n\\nSchema:\\n{\\n  \\\"post\\\": {\\n    \\\"content\\\": \\\"string\\\",\\n    \\\"hashtags\\\": \\\"string\\\",\\n    \\\"closing\\\": \\\"string\\\",\\n    \\\"galleries\\\": []\\n  },\\n  \\\"comments\\\": [\\\"string\\\", \\\"string\\\"]\\n}\\n\\nQuy tắc chung:\\n- Comment phải chứa link\\n- Văn phong tự nhiên, gần gũi\\n\\nQuy tắc cho Facebook:\\n- Nội dung chi tiết, đầy đủ thông tin (200-400 từ)\\n- Hashtag 5-10 cái\\n- Có thể dùng emoji, chia đoạn rõ ràng\\n- Tạo sự tương tác, hỏi ý kiến người đọc\\n\\nDữ liệu sản phẩm:\\nTên: \" + data.name + \"\\nGiá: \" + data.price + \"\\nBrand: \" + data.brand + \"\\nRating: \" + data.rating + \"\\nPhân khúc: \" + data.priceLevel + \"\\nLink: \" + data.affLink;\n\nreturn [{ json: { prompt, ...data } }];"
+      },
+      "id": "5c8ceab6-3891-4405-ac22-4b9b30835dbd",
+      "name": "Build Facebook Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst prompt = \"Bạn là content creator affiliate tại Việt Nam.\\n\\nTrả về DUY NHẤT JSON hợp lệ, không markdown.\\n\\nSchema:\\n{\\n  \\\"post\\\": {\\n    \\\"content\\\": \\\"string\\\",\\n    \\\"hashtags\\\": \\\"string\\\",\\n    \\\"closing\\\": \\\"string\\\",\\n    \\\"galleries\\\": []\\n  },\\n  \\\"comments\\\": [\\\"string\\\", \\\"string\\\"]\\n}\\n\\nQuy tắc chung:\\n- Comment phải chứa link\\n- Văn phong tự nhiên, gần gũi\\n\\nQuy tắc cho Instagram:\\n- Nội dung ngắn, hấp dẫn (100-150 từ)\\n- Hashtag nhiều (10-20 cái)\\n- Tập trung vào visual, cảm xúc\\n- Dùng emoji nhiều\\n\\nDữ liệu sản phẩm:\\nTên: \" + data.name + \"\\nGiá: \" + data.price + \"\\nBrand: \" + data.brand + \"\\nRating: \" + data.rating + \"\\nPhân khúc: \" + data.priceLevel + \"\\nLink: \" + data.affLink;\n\nreturn [{ json: { prompt, ...data } }];"
+      },
+      "id": "b2fe28a5-0167-4523-a398-11cd90390455",
+      "name": "Build Instagram Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst prompt = \"Bạn là content creator affiliate tại Việt Nam.\\n\\nTrả về DUY NHẤT JSON hợp lệ, không markdown.\\n\\nSchema:\\n{\\n  \\\"post\\\": {\\n    \\\"content\\\": \\\"string\\\",\\n    \\\"hashtags\\\": \\\"string\\\",\\n    \\\"closing\\\": \\\"string\\\",\\n    \\\"galleries\\\": []\\n  },\\n  \\\"comments\\\": [\\\"string\\\", \\\"string\\\"]\\n}\\n\\nQuy tắc chung:\\n- Comment phải chứa link\\n- Văn phong tự nhiên, gần gũi\\n\\nQuy tắc cho TikTok:\\n- Dòng đầu PHẢI là hook viral, gây tò mò\\n- Nội dung rất ngắn, súc tích (50-100 từ)\\n- Hashtag trending, viral (5-8 cái)\\n- Ngôn ngữ Gen Z, năng động\\n\\nDữ liệu sản phẩm:\\nTên: \" + data.name + \"\\nGiá: \" + data.price + \"\\nBrand: \" + data.brand + \"\\nRating: \" + data.rating + \"\\nPhân khúc: \" + data.priceLevel + \"\\nLink: \" + data.affLink;\n\nreturn [{ json: { prompt, ...data } }];"
+      },
+      "id": "17c0bf7b-3f23-4442-8df1-631b3d2415b3",
+      "name": "Build TikTok Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        688
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "76d522ee-e78d-4625-bfba-6830ac4f332f",
+      "name": "Merge Prompts1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1360,
+        592
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Clean Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Input": {
+      "main": [
+        [
+          {
+            "node": "Normalize Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Data": {
+      "main": [
+        [
+          {
+            "node": "Route by Platform",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Gemini API": {
+      "main": [
+        [
+          {
+            "node": "Merge Galleries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Galleries": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Platform": {
+      "main": [
+        [
+          {
+            "node": "Build Threads Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Facebook Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Instagram Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build TikTok Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Threads Prompt": {
+      "main": [
+        [
+          {
+            "node": "Merge Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Prompts": {
+      "main": [
+        [
+          {
+            "node": "Call Gemini API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Facebook Prompt": {
+      "main": [
+        [
+          {
+            "node": "Merge Prompts",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Build Instagram Prompt": {
+      "main": [
+        [
+          {
+            "node": "Merge Prompts1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build TikTok Prompt": {
+      "main": [
+        [
+          {
+            "node": "Merge Prompts1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Prompts1": {
+      "main": [
+        [
+          {
+            "node": "Call Gemini API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "731bb46c-5864-4fb4-83ef-c905f81bba66",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8f987c21fdd485cc298ed93e14caaa47e346c8f7e734adfed66a4ff92192677e"
+  },
+  "id": "SeCYjZrghppSmxee",
+  "tags": []
+}
