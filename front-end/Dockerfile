@@ -14,14 +14,13 @@ RUN npm install -g pnpm
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy environment files for build
-COPY .env .env.example ./
-
 # Copy source code and config files
 COPY src ./src
-COPY public ./public
 COPY index.html ./
 COPY tsconfig.json tsconfig.node.json vite.config.ts postcss.config.mjs ./
+
+# Copy optional env files if they exist
+COPY .env .env.example* ./
 
 # Build the application
 RUN pnpm build
