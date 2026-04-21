@@ -29,6 +29,7 @@ const allowedOrigins = [
   "*",
   "http://localhost:5173",
   "https://warning-shoppe-price.vercel.app",
+  "https://warning-price.gitlabserver.id.vn",
   ...(process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : []),
   ...(process.env.CORS_ORIGINS ?
     process.env.CORS_ORIGINS.split(",")
