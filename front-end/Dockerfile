@@ -1,46 +1,13 @@
-# =================
-# Build stage
-# =================
-FROM node:20-alpine AS builder
-
+# Stage 1: Build
+FROM node:20-alpine AS build
 WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
 
-# Copy package files (lock files are optional)
-COPY package*.json pnpm-lock.yaml* yarn.lock* ./
-
-# Install pnpm
-RUN npm install -g pnpm
-
-# Install dependencies
-RUN pnpm install --frozen-lockfile || pnpm install
-
-# Copy source code and config files
-COPY src ./src
-COPY index.html ./
-COPY tsconfig.json tsconfig.node.json vite.config.ts postcss.config.mjs ./
-
-# Build the application
-RUN pnpm build
-
-# =================
-# Runtime stage
-# =================
-FROM nginx:alpine
-
-WORKDIR /app
-
-# Copy nginx default configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Copy built files from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Expose port
+# Stage 2: Production (Serving with Nginx)
+FROM nginx:stable-alpine
+COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
-
-# Start nginx
 CMD ["nginx", "-g", "daemon off;"]
