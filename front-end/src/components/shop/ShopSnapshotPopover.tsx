@@ -60,7 +60,7 @@ export default function ShopSnapshotPopover({
     try {
       const [shopRes, countRes] = await Promise.all([
         shopsAPI.get(shopId),
-        shopsAPI.getProducts(shopId, true),
+        shopsAPI.getProducts(shopId),
       ]);
 
       const shop = shopRes.data || {};

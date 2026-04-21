@@ -374,8 +374,6 @@ export default function MasterProductsPage() {
     },
   ];
 
-  const totalPages = Math.ceil(total / pagination.pageSize);
-
   return (
     <div className='space-y-4 flex flex-col h-full'>
       {/* FILTER */}

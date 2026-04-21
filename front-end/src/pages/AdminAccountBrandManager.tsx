@@ -56,7 +56,6 @@ export default function AdminAccountBrandManager() {
     useState<AccountWithBrands | null>(null);
   const [selectedBrandIds, setSelectedBrandIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [searching, setSearching] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [newAccount, setNewAccount] = useState<NewAccount>({
     username: "",
