@@ -549,7 +549,7 @@ router.get("/:id/price-history", async (req, res) => {
         shopeeAvgPrice: avg,
         priceDelta: 0,
         crawledAt: item.crawled_at,
-        createdAt: item.created_at,
+        createdAt: item.crawled_at,
       };
     });
 
