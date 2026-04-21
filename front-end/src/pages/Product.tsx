@@ -1,7 +1,14 @@
 /** @format */
-
 import Pagination from "@/components/pagination";
 import { brandsAPI, masterProductsAPI } from "@/services/api";
+import {
+  BarChartOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  EyeOutlined,
+  InboxOutlined,
+  WarningOutlined,
+} from "@ant-design/icons";
 import {
   Button,
   Form,
@@ -10,6 +17,7 @@ import {
   Modal,
   Popconfirm,
   Popover,
+  Progress,
   Select,
   Space,
   Switch,
@@ -83,6 +91,11 @@ export default function MasterProductsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
   const [form] = Form.useForm();
+
+  // Import state
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   // Modal chi tiết cảnh báo
   const [warningDetailModal, setWarningDetailModal] = useState(false);
@@ -190,8 +203,43 @@ export default function MasterProductsPage() {
       a.download = "san-pham.xlsx";
       a.click();
       window.URL.revokeObjectURL(url);
+      message.success("Xuất file thành công");
     } catch {
       message.error("Export thất bại");
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await masterProductsAPI.downloadTemplate();
+      const blob = new Blob([res.data]);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mau-import-san-pham.xlsx";
+      a.click();
+      window.URL.revokeObjectURL(url);
+      message.success("Tải template thành công");
+    } catch {
+      message.error("Tải template thất bại");
+    }
+  };
+
+  const handleImportFile = async (file: File) => {
+    setImportLoading(true);
+    try {
+      const res = await masterProductsAPI.import(file);
+      setImportResult(res.data);
+      setImportModalOpen(true);
+
+      // Refresh data after import
+      setTimeout(() => {
+        fetchData(pagination.page, pagination.pageSize);
+      }, 500);
+    } catch (error: any) {
+      message.error(error.response?.data?.error || "Import thất bại");
+    } finally {
+      setImportLoading(false);
     }
   };
 
@@ -420,18 +468,29 @@ export default function MasterProductsPage() {
           Thêm
         </Button>
 
+        <Button icon={<Download />} onClick={handleDownloadTemplate}>
+          Tải template
+        </Button>
+
         <Upload
           showUploadList={false}
+          beforeUpload={(file) => {
+            if (!file.name.endsWith(".xlsx")) {
+              message.error("Chỉ chấp nhận file Excel (.xlsx)");
+              return false;
+            }
+            return true;
+          }}
           customRequest={async ({ file }) => {
-            await masterProductsAPI.import(file as File);
-            message.success("Import ok");
-            fetchData();
+            await handleImportFile(file as File);
           }}>
-          <Button icon={<UploadIcon />}>Import</Button>
+          <Button icon={<UploadIcon />} loading={importLoading}>
+            Import
+          </Button>
         </Upload>
 
         <Button icon={<Download />} onClick={handleExport}>
-          Export
+          Xuất Excel
         </Button>
       </Space>
 
@@ -501,6 +560,197 @@ export default function MasterProductsPage() {
             <Switch />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        open={importModalOpen}
+        onCancel={() => {
+          setImportModalOpen(false);
+          setImportResult(null);
+        }}
+        footer={null}
+        width={650}
+        className='import-result-modal'
+        title={
+          <div className='flex items-center gap-2 text-base font-semibold'>
+            <BarChartOutlined className='text-blue-500' />
+            <span>Kết quả Import</span>
+          </div>
+        }>
+        {importResult && (
+          <div className='space-y-5 pt-2'>
+            {/* Header Stats */}
+            <div className='grid grid-cols-3 gap-3'>
+              {/* Success */}
+              <div
+                style={{
+                  padding: 10,
+                }}
+                className='rounded-xl p-4 border border-green-500/20 bg-green-500/5'>
+                <div className='flex items-center justify-between mb-2'>
+                  <span className='text-xs font-semibold text-green-500 uppercase'>
+                    Thành công
+                  </span>
+                  <CheckCircleOutlined className='text-green-500 text-lg' />
+                </div>
+                <div className='text-3xl font-bold text-green-500'>
+                  {importResult.imported || 0}
+                </div>
+                <div className='text-xs text-gray-400 mt-1'>sản phẩm</div>
+              </div>
+
+              {/* Failed */}
+              <div
+                style={{
+                  padding: 10,
+                }}
+                className='rounded-xl p-4 border border-red-500/20 bg-red-500/5'>
+                <div className='flex items-center justify-between mb-2'>
+                  <span className='text-xs font-semibold text-red-500 uppercase'>
+                    Lỗi
+                  </span>
+                  <CloseCircleOutlined className='text-red-500 text-lg' />
+                </div>
+                <div className='text-3xl font-bold text-red-500'>
+                  {importResult.errors?.length || 0}
+                </div>
+                <div className='text-xs text-gray-400 mt-1'>hàng</div>
+              </div>
+
+              {/* Total */}
+              <div
+                style={{
+                  padding: 10,
+                }}
+                className='rounded-xl p-4 border border-blue-500/20 bg-blue-500/5'>
+                <div className='flex items-center justify-between mb-2'>
+                  <span className='text-xs font-semibold text-blue-500 uppercase'>
+                    Tổng
+                  </span>
+                  <InboxOutlined className='text-blue-500 text-lg' />
+                </div>
+                <div className='text-3xl font-bold text-blue-500'>
+                  {importResult.total || 0}
+                </div>
+                <div className='text-xs text-gray-400 mt-1'>hàng</div>
+              </div>
+            </div>
+
+            {/* Progress */}
+            {importResult.total > 0 && (
+              <div
+                style={{
+                  padding: 10,
+                }}>
+                <div className='flex justify-between text-xs mb-1'>
+                  <span className='text-gray-400'>Tiến độ</span>
+                  <span>
+                    {Math.round(
+                      ((importResult.imported || 0) /
+                        (importResult.total || 1)) *
+                        100,
+                    )}
+                    %
+                  </span>
+                </div>
+
+                <Progress
+                  percent={Math.round(
+                    ((importResult.imported || 0) / (importResult.total || 1)) *
+                      100,
+                  )}
+                  strokeColor='#22c55e'
+                  showInfo={false}
+                />
+              </div>
+            )}
+
+            {/* Error List */}
+            {importResult.errors?.length > 0 && (
+              <div
+                style={{
+                  padding: 10,
+                }}>
+                <div className='flex items-center gap-2 mb-2'>
+                  <WarningOutlined className='text-red-500' />
+                  <span className='text-sm font-semibold text-gray-300'>
+                    Chi tiết lỗi
+                  </span>
+                  <Tag color='red'>{importResult.errors.length}</Tag>
+                </div>
+
+                <div className='max-h-56 overflow-y-auto space-y-2 pr-1'>
+                  {importResult.errors.map((error: string, idx: number) => (
+                    <div
+                      key={idx}
+                      className='text-xs p-2 rounded-lg bg-red-500/5 border border-red-500/20'>
+                      {error}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Success State */}
+            {!importResult.errors?.length && importResult.imported > 0 && (
+              <div className='text-center border border-green-500/20 bg-green-500/5 rounded-xl p-4'>
+                <CheckCircleOutlined className='text-3xl text-green-500 mb-2' />
+                <div className='text-sm font-semibold text-green-400'>
+                  Hoàn thành không có lỗi!
+                </div>
+              </div>
+            )}
+
+            {/* Summary */}
+            {importResult.imported > 0 && (
+              <div className='text-center border border-blue-500/20 bg-blue-500/5 rounded-xl p-3'>
+                <div className='text-sm text-gray-300'>
+                  Đã import{" "}
+                  <span className='font-bold text-blue-400'>
+                    {importResult.imported}
+                  </span>{" "}
+                  sản phẩm
+                  {importResult.errors?.length > 0 && (
+                    <>
+                      {" "}
+                      và{" "}
+                      <span className='font-bold text-red-400'>
+                        {importResult.errors.length}
+                      </span>{" "}
+                      lỗi
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className='flex gap-2 pt-2'>
+              <Button
+                block
+                onClick={() => {
+                  setImportModalOpen(false);
+                  setImportResult(null);
+                }}>
+                Đóng
+              </Button>
+
+              {importResult.imported > 0 && (
+                <Button
+                  type='primary'
+                  icon={<EyeOutlined />}
+                  block
+                  onClick={() => {
+                    setImportModalOpen(false);
+                    setImportResult(null);
+                    setTimeout(() => fetchData(1, pagination.pageSize), 100);
+                  }}>
+                  Xem dữ liệu
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* MODAL CHI TIẾT CẢNH BÁO */}

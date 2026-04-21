@@ -393,48 +393,170 @@ router.post("/import", upload.single("file"), async (req, res) => {
     if (!userId) return;
 
     if (!req.file) {
-      return res.status(400).json({ error: "No file provided" });
+      return res.status(400).json({ error: "Không có file được tải lên" });
+    }
+
+    // Validate file type
+    if (
+      !req.file.mimetype.includes("sheet") &&
+      !req.file.originalname.endsWith(".xlsx")
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Chỉ chấp nhận file Excel (.xlsx)" });
     }
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(req.file.buffer);
     const sheet = workbook.getWorksheet(1);
 
-    let imported = 0;
+    if (!sheet) {
+      return res.status(400).json({ error: "File không có sheet nào" });
+    }
 
-    if (sheet) {
-      for (let i = 2; i <= sheet.rowCount; i += 1) {
+    let imported = 0;
+    let errors = [];
+    const startRow = 2;
+
+    const brands = [];
+    for (let i = startRow; i <= sheet.rowCount; i++) {
+      const brand = (sheet.getRow(i).getCell(3).value || "").toString().trim();
+      if (brand && !brands.includes(brand)) {
+        brands.push(brand);
+      }
+    }
+    // add brand if it not exist
+    for (const brandName of brands) {
+      const { data: existingBrand } = await supabase
+        .from("brands")
+        .select("id")
+        .eq("name", brandName)
+        .single();
+
+      if (!existingBrand) {
+        const { data: newBrand, error: brandError } = await supabase
+          .from("brands")
+          .insert({
+            name: brandName,
+            code: brandName.toLowerCase(),
+          })
+          .select("*")
+          .single();
+
+        if (brandError) {
+          console.error(`Error inserting brand ${brandName}:`, brandError);
+          continue;
+        }
+        // add account_brand_permissions for new brand
+        const { error: permError } = await supabase
+          .from("account_brand_permissions")
+          .insert({
+            user_id: userId,
+            brand_id: newBrand.id,
+          });
+
+        if (permError) {
+          console.error(
+            `Error inserting brand permission for ${brandName}:`,
+            permError,
+          );
+        }
+
+        console.log(`Inserted new brand: ${brandName} with id ${newBrand.id}`);
+      }
+    }
+    const brandFound = await supabase
+      .from("brands")
+      .select("id, name")
+      .in("name", brands);
+
+    const brandMap = {};
+    (brandFound.data || []).forEach((b) => {
+      brandMap[b.name] = b.id;
+    });
+
+    for (let i = startRow; i <= sheet.rowCount; i++) {
+      try {
         const row = sheet.getRow(i);
         const name = (row.getCell(1).value || "").toString().trim();
-        if (!name) continue;
-
-        const brand = (row.getCell(2).value || "").toString().trim();
-        const models = (row.getCell(3).value || "").toString();
-        const variants = (row.getCell(4).value || "").toString();
-        const listedPrice = toNumber(row.getCell(5).value, 0);
-        const description = (row.getCell(6).value || "").toString().trim();
-
-        const { error: insertError } = await supabase.from("products").insert({
-          owner_id: userId,
-          name,
-          brand: brand || null,
-          models: normalizeStringArray(models),
-          variants: normalizeStringArray(variants),
-          listed_price: listedPrice,
-          description: description || null,
-          created_at: new Date(),
-        });
-
-        if (!insertError) {
-          imported += 1;
+        if (!name) {
+          errors.push(`Hàng ${i}: Tên sản phẩm không được để trống`);
+          continue;
         }
+        const brand = (row.getCell(3).value || "").toString().trim();
+        const variants =
+          (row.getCell(2).value || "")
+            .toString()
+            ?.split(",")
+            ?.map((x) => x.trim())
+            .filter(Boolean) || [];
+        const listedPrice = toNumber(row.getCell(4).value, 0);
+
+        // Validate required fields
+        if (!name) {
+          errors.push(`Hàng ${i}: Tên sản phẩm không được để trống`);
+          continue;
+        }
+
+        if (listedPrice <= 0) {
+          errors.push(`Hàng ${i}: Giá phải lớn hơn 0`);
+          continue;
+        }
+
+        const brandId = brandMap[brand] || null;
+        // Insert product
+        const { data: insertedProduct, error: insertError } = await supabase
+          .from("products")
+          .insert({
+            owner_id: userId,
+            name,
+            brand_id: brandId,
+            models: [],
+            variants: variants,
+            listed_price: listedPrice,
+            is_active: true,
+            is_warning: false,
+            created_at: new Date(),
+          })
+          .select("*")
+          .single();
+
+        if (insertError) {
+          errors.push(`Hàng ${i}: ${insertError.message}`);
+          continue;
+        }
+
+        // Scan for warnings after insert
+        if (insertedProduct?.id) {
+          await scanAndUpdateWarningProduct(insertedProduct.id);
+        }
+
+        await logTenantAccess(
+          userId,
+          "CREATE",
+          "PRODUCT",
+          insertedProduct?.id,
+          {
+            name,
+            source: "import",
+          },
+        );
+
+        imported++;
+      } catch (rowError) {
+        errors.push(`Hàng ${i}: ${rowError.message}`);
       }
     }
 
-    res.json({ success: true, imported });
+    res.json({
+      success: true,
+      imported,
+      total: sheet.rowCount - startRow + 1,
+      errors: errors.length > 0 ? errors : undefined,
+    });
   } catch (error) {
     console.error("Error importing master products:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Lỗi khi import: " + error.message });
   }
 });
 
@@ -544,6 +666,67 @@ router.get("/:id/get-warning", async (req, res) => {
   } catch (error) {
     console.error("Error fetching warnings:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ========================
+// TEMPLATE - Download import template
+// ========================
+router.get("/template/download", async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("MasterProducts");
+
+    // Set up columns
+    sheet.columns = [
+      { header: "Tên sản phẩm", key: "name", width: 20 },
+      {
+        header: "Phân loại(cách nhau bằng dấu phẩy)",
+        key: "variants",
+        width: 40,
+      },
+      { header: "Thương hiệu", key: "brand", width: 20 },
+      { header: "Giá niêm yết", key: "listed_price", width: 20 },
+    ];
+
+    // Format header row
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF4472C4" },
+    };
+    headerRow.alignment = {
+      horizontal: "center",
+      vertical: "center",
+      wrapText: true,
+    };
+
+    // Format data rows
+    for (let i = 2; i <= sheet.rowCount; i++) {
+      const row = sheet.getRow(i);
+      row.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFF2F2F2" },
+      };
+      row.alignment = { wrapText: true, vertical: "top" };
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=mau-import-san-pham.xlsx",
+    );
+    res.send(buffer);
+  } catch (error) {
+    console.error("Error generating template:", error);
+    res.status(500).json({ error: "Lỗi tạo template" });
   }
 });
 

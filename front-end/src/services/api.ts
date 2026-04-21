@@ -173,6 +173,11 @@ export const masterProductsAPI = {
       responseType: "blob",
       ...config,
     }),
+  downloadTemplate: (config?: AxiosRequestConfig) =>
+    api.get("/master-data/products/template/download", {
+      responseType: "blob",
+      ...config,
+    }),
   comparePrice: () => api.get("/master-data/products/compare/price"),
   getWarning: (id: string) =>
     api.get(`/master-data/products/${id}/get-warning`),
