@@ -19,9 +19,6 @@ COPY src ./src
 COPY index.html ./
 COPY tsconfig.json tsconfig.node.json vite.config.ts postcss.config.mjs ./
 
-# Copy optional env files if they exist
-COPY .env .env.example* ./
-
 # Build the application
 RUN pnpm build
 
