@@ -1,9 +1,9 @@
 /** @format */
 
 import Pagination from "@/components/pagination";
-import { shopsAPI } from "@/services/api";
-import { Button, Spin, Table, message } from "antd";
-import { ArrowLeft, Edit } from "lucide-react";
+import { productsAPI, shopsAPI } from "@/services/api";
+import { Button, message, Modal, Spin, Table, Tag } from "antd";
+import { ArrowLeft, Calendar, Edit, History } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -26,6 +26,14 @@ interface Product {
   created_at?: string;
 }
 
+interface PriceHistory {
+  id?: string;
+  price: number;
+  price_min?: number;
+  price_max?: number;
+  created_at: string;
+}
+
 export default function ShopDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -36,6 +44,12 @@ export default function ShopDetail() {
   const [productsLoading, setProductsLoading] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 });
   const [total, setTotal] = useState(0);
+
+  // Price History state
+  const [priceHistoryModal, setPriceHistoryModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
+  const [priceHistoryLoading, setPriceHistoryLoading] = useState(false);
 
   const fetchShopDetail = async () => {
     if (!id) return;
@@ -65,6 +79,25 @@ export default function ShopDetail() {
     }
   };
 
+  const fetchPriceHistory = async (productId: string) => {
+    setPriceHistoryLoading(true);
+    try {
+      const res = await productsAPI.getPriceHistory(productId, 100);
+      setPriceHistory(res.data.history || res.data || []);
+    } catch (error) {
+      message.error("Lỗi tải lịch sử giá");
+      setPriceHistory([]);
+    } finally {
+      setPriceHistoryLoading(false);
+    }
+  };
+
+  const handleViewPriceHistory = async (product: Product) => {
+    setSelectedProduct(product);
+    setPriceHistoryModal(true);
+    await fetchPriceHistory(product.id);
+  };
+
   useEffect(() => {
     fetchShopDetail();
     fetchShopProducts(pagination.page, pagination.pageSize);
@@ -81,7 +114,11 @@ export default function ShopDetail() {
       key: "image",
       width: 80,
       render: (image: string) => (
-        <img src={image} alt='Product' className='w-16 h-16 object-cover' />
+        <img
+          src={image}
+          alt='Product'
+          className='w-16 h-16 object-cover rounded'
+        />
       ),
     },
     {
@@ -113,6 +150,21 @@ export default function ShopDetail() {
       width: 120,
       align: "right" as const,
       render: (price: number) => price?.toLocaleString("vi-VN") || "-",
+    },
+    {
+      title: "Thao tác",
+      key: "action",
+      width: 100,
+      render: (_: any, product: Product) => (
+        <Button
+          type='text'
+          icon={<History size={14} />}
+          onClick={() => handleViewPriceHistory(product)}
+          className='text-blue-400 hover:text-blue-300'
+          title='Xem lịch sử giá'>
+          Lịch sử giá
+        </Button>
+      ),
     },
   ];
 
@@ -269,6 +321,146 @@ export default function ShopDetail() {
           </div>
         </div>
       </div>
+
+      {/* Price History Modal */}
+      <Modal
+        open={priceHistoryModal}
+        onCancel={() => {
+          setPriceHistoryModal(false);
+          setSelectedProduct(null);
+          setPriceHistory([]);
+        }}
+        footer={null}
+        width={700}
+        title={
+          <div className='flex items-center gap-2'>
+            <History size={18} />
+            <span>Lịch sử giá - {selectedProduct?.name}</span>
+          </div>
+        }>
+        {priceHistoryLoading ?
+          <div className='flex justify-center py-8'>
+            <Spin />
+          </div>
+        : priceHistory.length > 0 ?
+          <div className='space-y-3'>
+            {/* Stats */}
+            <div className='grid grid-cols-3 gap-3 mb-4'>
+              <div className='bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-center'>
+                <div className='text-xs text-blue-400 font-semibold mb-1'>
+                  GIÁ HIỆN TẠI
+                </div>
+                <div className='text-xl font-bold text-blue-400'>
+                  ₫{priceHistory[0]?.price?.toLocaleString?.()}
+                </div>
+              </div>
+              <div className='bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-center'>
+                <div className='text-xs text-green-400 font-semibold mb-1'>
+                  GIÁ THẤP NHẤT
+                </div>
+                <div className='text-xl font-bold text-green-400'>
+                  ₫
+                  {Math.min(
+                    ...priceHistory.map((p) => p.price_min || p.price),
+                  ).toLocaleString?.()}
+                </div>
+              </div>
+              <div className='bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-center'>
+                <div className='text-xs text-red-400 font-semibold mb-1'>
+                  GIÁ CAO NHẤT
+                </div>
+                <div className='text-xl font-bold text-red-400'>
+                  ₫
+                  {Math.max(
+                    ...priceHistory.map((p) => p.price_max || p.price),
+                  ).toLocaleString?.()}
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div className='bg-gray-800/40 border border-gray-700/50 rounded-lg p-4 max-h-96 overflow-y-auto'>
+              <div className='space-y-2'>
+                {priceHistory.map((record, index) => {
+                  const isLatest = index === 0;
+                  const nextRecord = priceHistory[index + 1];
+                  const priceDiff =
+                    nextRecord ? record.price - nextRecord.price : 0;
+                  const priceChanged = priceDiff !== 0;
+                  const priceUp = priceDiff > 0;
+
+                  return (
+                    <div
+                      key={index}
+                      className={`flex items-start gap-3 p-3 rounded-lg border transition-all ${
+                        isLatest ?
+                          "bg-blue-500/10 border-blue-500/20"
+                        : "bg-gray-700/20 border-gray-700/30 hover:bg-gray-700/40"
+                      }`}>
+                      {/* Timeline marker */}
+                      <div className='mt-1'>
+                        {isLatest ?
+                          <div className='w-3 h-3 rounded-full bg-blue-400 ring-2 ring-blue-400/30' />
+                        : <div className='w-2 h-2 rounded-full bg-gray-500' />}
+                      </div>
+
+                      {/* Content */}
+                      <div className='flex-1'>
+                        <div className='flex items-center justify-between mb-1'>
+                          <div className='flex items-center gap-2'>
+                            <span className='font-semibold text-gray-200'>
+                              ₫{record.price?.toLocaleString?.()}
+                            </span>
+                            {priceChanged && (
+                              <Tag
+                                color={priceUp ? "volcano" : "green"}
+                                className='text-xs'>
+                                {priceUp ? "↑" : "↓"} ₫
+                                {Math.abs(priceDiff).toLocaleString?.()}
+                              </Tag>
+                            )}
+                          </div>
+                          {isLatest && (
+                            <Tag color='blue' className='text-xs'>
+                              Mới nhất
+                            </Tag>
+                          )}
+                        </div>
+                        <div className='flex items-center gap-1 text-xs text-gray-400'>
+                          <Calendar size={12} />
+                          {new Date(record.created_at).toLocaleString?.(
+                            "vi-VN",
+                          )}
+                        </div>
+                        {record.price_min && record.price_max && (
+                          <div className='text-xs text-gray-500 mt-1'>
+                            Range: ₫{record.price_min?.toLocaleString?.()} - ₫
+                            {record.price_max?.toLocaleString?.()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Summary */}
+            <div className='bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-center text-sm'>
+              <div className='text-gray-300'>
+                📊 Theo dõi từ{" "}
+                <span className='font-semibold text-amber-400'>
+                  {priceHistory.length}
+                </span>{" "}
+                lần ghi nhận
+              </div>
+            </div>
+          </div>
+        : <div className='text-center py-8 text-gray-400'>
+            Không có lịch sử giá
+          </div>
+        }
+      </Modal>
     </div>
   );
 }

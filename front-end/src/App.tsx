@@ -25,6 +25,7 @@ import Settings from "@/pages/Settings";
 import ShopForm from "@/pages/ShopForm";
 import Shops from "@/pages/Shops";
 import ProductForm from "./pages/ProductForm";
+import ShopDetail from "./pages/ShopDetail";
 // Private Route Component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
@@ -159,6 +160,7 @@ export default function App() {
               <Route path='shops' element={<Shops />} />
               <Route path='shops/new' element={<ShopForm />} />
               <Route path='shops/:id' element={<ShopForm />} />
+              <Route path='shops/detail/:id' element={<ShopDetail />} />
               <Route path='products/new' element={<ProductForm />} />
               <Route path='products/:id' element={<ProductDetail />} />
               <Route path='products/:id/edit' element={<ProductForm />} />

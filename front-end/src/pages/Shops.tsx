@@ -3,7 +3,7 @@
 import Pagination from "@/components/pagination";
 import { crawlHistoryAPI, shopsAPI } from "@/services/api";
 import { Button, Input, Popconfirm, Space, Table, message } from "antd";
-import { Edit, Play, Plus, Trash2 } from "lucide-react";
+import { Edit, Eye, Play, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -238,6 +238,15 @@ export default function ShopsPage() {
             cancelText='Không'>
             <Button danger size='large' icon={<Trash2 size={14} />} />
           </Popconfirm>
+
+          <Button
+            size='large'
+            icon={<Eye size={14} />}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              navigate(`/dashboard/shops/detail/${record.id}`);
+            }}></Button>
         </Space>
       ),
     },

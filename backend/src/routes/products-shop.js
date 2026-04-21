@@ -512,10 +512,8 @@ router.get("/:id/price-history", async (req, res) => {
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 100, 1), 500);
 
     const { data: history, error } = await supabase
-      .from("product_price_history")
-      .select(
-        "id, product_id, price_min, price_max, price_original, rating, sold_count, crawled_at, created_at",
-      )
+      .from("price_histories")
+      .select("id, product_id, price_min, price_max, created_at")
       .eq("product_id", id)
       .order("crawled_at", { ascending: false })
       .limit(limit);
