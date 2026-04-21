@@ -513,8 +513,10 @@ router.get("/:id/price-history", async (req, res) => {
 
     const { data: history, error } = await supabase
       .from("price_histories")
-      .select("id, product_id, price_min, price_max, created_at")
-      .eq("product_id", id)
+      .select(
+        "id, shop_product_id, price_min, price_max, created_at, crawled_at",
+      )
+      .eq("shop_product_id", id)
       .order("crawled_at", { ascending: false })
       .limit(limit);
 
@@ -537,19 +539,15 @@ router.get("/:id/price-history", async (req, res) => {
     const items = (history || []).map((item) => {
       const min = toNumber(item.price_min, 0);
       const max = toNumber(item.price_max, 0);
-      const original = toNumber(item.price_original, 0);
       const avg = (min + max) / 2;
 
       return {
         id: item.id,
-        productId: item.product_id,
+        shopProductId: item.shop_product_id,
         priceMin: min,
         priceMax: max,
-        priceOriginal: original,
         shopeeAvgPrice: avg,
-        priceDelta: avg - original,
-        rating: toNumber(item.rating, 0),
-        soldCount: Number(item.sold_count || 0),
+        priceDelta: 0,
         crawledAt: item.crawled_at,
         createdAt: item.created_at,
       };
