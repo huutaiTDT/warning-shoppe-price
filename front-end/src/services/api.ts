@@ -4,7 +4,9 @@ import { emitApiToast } from "@/components/toast/hook";
 import { clearStoredAuthSession, getStoredAuthToken } from "@/lib/auth";
 import axios, { type AxiosRequestConfig } from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://warning-price-api.gitlabserver.id.vn";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
