@@ -55,7 +55,7 @@ jobs:
       - name: Copy nginx config & script to server
         run: |
           cd front-end
-          sshpass -p $SSH_PASS scp -o StrictHostKeyChecking=no -P 24700 ./warning-price-shoppe.conf ./config.sh ${{env.SSH_USERNAME}}@${{env.SSH_HOST}}:/container/
+          sshpass -p $SSH_PASS scp -o StrictHostKeyChecking=no -P 24700 ./warning-price-shoppe-fron-end.conf ./config.sh ${{env.SSH_USERNAME}}@${{env.SSH_HOST}}:/container/
 
       - name: Deploy to Server (using SSH and Docker)
         run: |
