@@ -1,10 +1,11 @@
 /** @format */
 
+import Pagination from "@/components/pagination";
 import { crawlHistoryAPI, shopsAPI } from "@/services/api";
 import { Button, Input, Popconfirm, Space, Table, message } from "antd";
 import { Edit, Play, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const normalizeShop = (shop: any) => ({
   ...shop,
@@ -13,6 +14,7 @@ const normalizeShop = (shop: any) => ({
 });
 
 export default function ShopsPage() {
+  const navigate = useNavigate();
   const [shops, setShops] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -72,7 +74,7 @@ export default function ShopsPage() {
       const countResults = await Promise.all(
         list.map(async (shop: any) => {
           try {
-            const countRes = await shopsAPI.getProducts(shop.id, true);
+            const countRes = await shopsAPI.getProducts(shop.id, 1, 10, true);
             return {
               ...shop,
               productCount: Number(
@@ -226,7 +228,7 @@ export default function ShopsPage() {
               onClick={() => handleCrawl(record.id, record.name || "Cửa hàng")}
             />
           )}
-          <Link to={`/dashboard/shops/${record.id}`}>
+          <Link to={`/dashboard/shops/${record.id}/edit`}>
             <Button size='large' icon={<Edit size={14} />} />
           </Link>
           <Popconfirm
@@ -240,6 +242,10 @@ export default function ShopsPage() {
       ),
     },
   ];
+
+  const handleRowClick = (record: any) => {
+    navigate(`/dashboard/shops/${record.id}`);
+  };
 
   return (
     <div className='space-y-4 h-full flex flex-col'>
@@ -272,37 +278,26 @@ export default function ShopsPage() {
             pagination={false}
             scroll={{ x: 1200, y: "100%" }}
             size='large'
+            onRow={(record) => ({
+              onClick: () => handleRowClick(record),
+              style: { cursor: "pointer" },
+            })}
           />
         </div>
 
-        <div className='shrink-0 bg-gray-900 border-t border-gray-800 px-4 py-3'>
-          <div className='flex items-center justify-between'>
-            <span className='text-xs text-gray-400'>
-              Hiển thị {shops.length} / {total} mục
-            </span>
-            <div className='flex items-center gap-2'>
-              <Button
-                size='large'
-                disabled={pagination.page === 1}
-                onClick={() =>
-                  setPagination({ ...pagination, page: pagination.page - 1 })
-                }>
-                Trước
-              </Button>
-              <span className='text-xs text-gray-400'>
-                Trang {pagination.page}
-              </span>
-              <Button
-                size='large'
-                disabled={pagination.page * pagination.pageSize >= total}
-                onClick={() =>
-                  setPagination({ ...pagination, page: pagination.page + 1 })
-                }>
-                Sau
-              </Button>
-            </div>
-          </div>
-        </div>
+        <Pagination
+          currentCount={pagination.page}
+          pageSize={pagination.pageSize}
+          total={total}
+          onChange={(page) =>
+            setPagination({ page, pageSize: pagination.pageSize })
+          }
+          page={
+            pagination.page > Math.ceil(total / pagination.pageSize) ?
+              1
+            : pagination.page
+          }
+        />
       </div>
 
       {crawlProgress.visible && (

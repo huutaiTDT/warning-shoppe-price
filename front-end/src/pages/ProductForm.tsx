@@ -76,6 +76,7 @@ export default function ProductFormPage() {
         name: data.name,
         shop_id: data.shopId,
         brand: data.brand,
+        variants: Array.isArray(data.variants) ? data.variants : [],
         priceMin: data.priceMin,
         priceMax: data.priceMax,
         priceOriginal: data.priceOriginal,
@@ -121,6 +122,7 @@ export default function ProductFormPage() {
       form.setFieldsValue({
         name: data.name || data.title,
         brand: data.brand,
+        variants: Array.isArray(data.variants) ? data.variants : [],
         image: data.image || data.thumbnail,
         priceMin: data.priceMin ?? data.price_min,
         priceMax: data.priceMax ?? data.price_max,
@@ -185,6 +187,7 @@ export default function ProductFormPage() {
       const payload = {
         name: values.name,
         brand: values.brand,
+        variants: Array.isArray(values.variants) ? values.variants : [],
         shop_id: values.shop_id,
         priceMin: Number(values.priceMin),
         priceMax: Number(values.priceMax),
@@ -448,6 +451,17 @@ export default function ProductFormPage() {
                         value: brand.name,
                         label: brand.name,
                       }))}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label='Variants' name='variants'>
+                    <Select
+                      mode='tags'
+                      disabled={createLocked}
+                      allowClear
+                      placeholder='Nhập nhiều variants'
+                      tokenSeparators={[",", "\n"]}
                     />
                   </Form.Item>
                 </Col>

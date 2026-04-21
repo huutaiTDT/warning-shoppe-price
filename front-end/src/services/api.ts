@@ -59,23 +59,30 @@ export const authAPI = {
   login: (username: string, password: string) =>
     api.post("/auth/login", { username, password }),
   logout: () => api.post("/auth/logout"),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post("/auth/change-password", { currentPassword, newPassword }),
+  getCurrentUser: () => api.get("/auth/me"),
 };
 
 // Shops APIs
 export const shopsAPI = {
   list: (page = 1, limit = 10, search?: string) =>
-    api.get("/shops", { params: { page, limit, search } }),
-  get: (id: string) => api.get(`/shops/${id}`),
-  create: (data: any) => api.post("/shops", data),
-  update: (id: string, data: any) => api.put(`/shops/${id}`, data),
-  delete: (id: string) => api.delete(`/shops/${id}`),
-  crawl: (id: string) => api.post(`/shops/${id}/crawl`),
-  getProducts: (id: string, countOnly = false) =>
-    api.get(`/shops/${id}/products`, {
-      params: { count: countOnly || undefined },
+    api.get("/master-data/shops", { params: { page, limit, search } }),
+  get: (id: string) => api.get(`/master-data/shops/${id}`),
+  create: (data: any) => api.post("/master-data/shops", data),
+  update: (id: string, data: any) => api.put(`/master-data/shops/${id}`, data),
+  delete: (id: string) => api.delete(`/master-data/shops/${id}`),
+  crawl: (id: string) => api.post(`/master-data/shops/${id}/crawl`),
+  getProducts: (id: string, page = 1, limit = 10, countOnly = false) =>
+    api.get(`/master-data/shops/${id}/products`, {
+      params: {
+        page: countOnly ? undefined : page,
+        limit: countOnly ? undefined : limit,
+        count: countOnly || undefined,
+      },
     }),
   resetProductStatus: (id: string) =>
-    api.post(`/shops/${id}/reset-product-status`),
+    api.post(`/master-data/shops/${id}/reset-product-status`),
 };
 
 // Products APIs
@@ -116,26 +123,23 @@ export const dashboardAPI = {
   getOverview: () => api.get("/dashboard/overview"),
 };
 
-// Account Settings APIs
-export const accountSettingsAPI = {
-  list: (page = 1, limit = 20, search?: string, platform?: string) =>
-    api.get("/account-settings", { params: { page, limit, search, platform } }),
-  get: (id: string) => api.get(`/account-settings/${id}`),
-  create: (data: any) => api.post("/account-settings", data),
-  update: (id: string, data: any) => api.put(`/account-settings/${id}`, data),
-  delete: (id: string) => api.delete(`/account-settings/${id}`),
-};
-
-// Post Schedules APIs
-export const postSchedulesAPI = {
-  list: (page = 1, limit = 20, search?: string, status?: string) =>
-    api.get("/post-schedules", { params: { page, limit, search, status } }),
-  get: (id: string) => api.get(`/post-schedules/${id}`),
-  create: (data: any) => api.post("/post-schedules", data),
-  update: (id: string, data: any) => api.put(`/post-schedules/${id}`, data),
-  delete: (id: string) => api.delete(`/post-schedules/${id}`),
-  processDue: () => api.post("/post-schedules/process-due"),
-  processNow: (id: string) => api.post(`/post-schedules/${id}/process`),
+// Accounts Management APIs
+export const accountsAPI = {
+  list: (page = 1, limit = 20) =>
+    api.get("/accounts", { params: { page, limit } }),
+  getAll: () =>
+    api.get("/accounts").then((res) => res.data.items || res.data || []),
+  get: (id: string) => api.get(`/accounts/${id}`),
+  create: (data: any) => api.post("/accounts", data),
+  update: (id: string, data: any) => api.put(`/accounts/${id}`, data),
+  delete: (id: string) => api.delete(`/accounts/${id}`),
+  getAssignedShops: () => api.get("/accounts/shops"),
+  // Brand management for accounts
+  getBrands: (accountId: string) => api.get(`/accounts/${accountId}/brands`),
+  assignBrands: (accountId: string, brandIds: string[]) =>
+    api.post(`/accounts/${accountId}/brands`, { brand_ids: brandIds }),
+  removeBrand: (accountId: string, brandId: string) =>
+    api.delete(`/accounts/${accountId}/brands/${brandId}`),
 };
 
 // Master Data - Brands APIs
@@ -146,4 +150,38 @@ export const brandsAPI = {
   create: (data: any) => api.post("/master-data/brands", data),
   update: (id: string, data: any) => api.put(`/master-data/brands/${id}`, data),
   delete: (id: string) => api.delete(`/master-data/brands/${id}`),
+};
+
+export const masterProductsAPI = {
+  list: (page = 1, limit = 20, filters?: any) =>
+    api.get("/master-data/products", { params: { page, limit, ...filters } }),
+  get: (id: string) => api.get(`/master-data/products/${id}`),
+  create: (data: any) => api.post("/master-data/products", data),
+  update: (id: string, data: any) =>
+    api.put(`/master-data/products/${id}`, data),
+  delete: (id: string) => api.delete(`/master-data/products/${id}`),
+  import: (file: File, config?: AxiosRequestConfig) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api.post("/master-data/products/import", formData, {
+      ...config,
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+  export: (config?: AxiosRequestConfig) =>
+    api.get("/master-data/products/export/xlsx", {
+      responseType: "blob",
+      ...config,
+    }),
+  comparePrice: () => api.get("/master-data/products/compare/price"),
+  getWarning: (id: string) =>
+    api.get(`/master-data/products/${id}/get-warning`),
+};
+
+export const userBrandPermissionsAPI = {
+  list: () => api.get("/master-data/user-brand-permissions"),
+  create: (data: { user_id: string; brand_id: string }) =>
+    api.post("/master-data/user-brand-permissions", data),
+  delete: (id: string) =>
+    api.delete(`/master-data/user-brand-permissions/${id}`),
 };

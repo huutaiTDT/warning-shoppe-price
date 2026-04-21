@@ -3,10 +3,12 @@
 export type AuthUser = {
   id: string;
   username: string;
+  email: string;
   token: string;
-  email?: string;
+  type: "ADMIN" | "STAFF";
+  mustChangePassword: boolean;
   created_at?: string;
-  is_aff?: boolean;
+  is_active?: boolean;
 };
 
 const AUTH_TOKEN_KEY = "auth_token";
@@ -25,12 +27,21 @@ export const getStoredAuthUser = (): AuthUser | null => {
   }
 };
 
-export const setStoredAuthSession = (user: AuthUser) => {
-  localStorage.setItem(AUTH_TOKEN_KEY, user.token);
-  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+export const setStoredAuthSession = (user: AuthUser, token: string) => {
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+  const userToStore = { ...user, token };
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userToStore));
 };
 
 export const clearStoredAuthSession = () => {
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
+};
+
+export const isAdmin = (user: AuthUser | null): boolean => {
+  return user?.type === "ADMIN";
+};
+
+export const isStaff = (user: AuthUser | null): boolean => {
+  return user?.type === "STAFF";
 };

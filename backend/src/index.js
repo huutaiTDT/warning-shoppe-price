@@ -11,16 +11,16 @@ import cors from "cors";
 import express from "express";
 
 // Import routes
-import accountSettingsRoutes from "./routes/accountSettings.js";
+import { tenantContextMiddleware } from "./middleware/tenantContext.js";
+import accountsRoutes from "./routes/accounts.js";
 import authRoutes from "./routes/auth.js";
-import brandsRoutes from "./routes/brands.js";
+import brandPermissionsRoutes from "./routes/brandPermissions.js";
+import masterDataBrandsRoutes from "./routes/brands.js";
 import crawlRoutes from "./routes/crawl.js";
 import crawlHistoryRoutes from "./routes/crawlHistory.js";
-import dashboardRoutes from "./routes/dashboard.js";
-import postSchedulesRoutes from "./routes/postSchedules.js";
-import productsRoutes from "./routes/products.js";
-import shopsRoutes from "./routes/shops.js";
-import { startPostScheduler } from "./services/postScheduler.js";
+import productsRoutes from "./routes/products-shop.js";
+import masterProductsRoutes from "./routes/products.js";
+import masterDataShopsRoutes from "./routes/shops.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -61,14 +61,18 @@ app.get("/health", (req, res) => {
 
 // API Routes
 app.use("/auth", authRoutes);
-app.use("/shops", shopsRoutes);
-app.use("/shops", crawlRoutes);
-app.use("/products", productsRoutes);
+app.use("/accounts", accountsRoutes);
+app.use("/master-data/brands", masterDataBrandsRoutes);
+app.use(
+  "/master-data/brand-permissions",
+  tenantContextMiddleware,
+  brandPermissionsRoutes,
+);
+app.use("/master-data/shops", crawlRoutes);
+app.use("/products", tenantContextMiddleware, productsRoutes);
 app.use("/crawl-history", crawlHistoryRoutes);
-app.use("/master-data/brands", brandsRoutes);
-app.use("/dashboard", dashboardRoutes);
-app.use("/account-settings", accountSettingsRoutes);
-app.use("/post-schedules", postSchedulesRoutes);
+app.use("/master-data/products", tenantContextMiddleware, masterProductsRoutes);
+app.use("/master-data/shops", masterDataShopsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -82,7 +86,6 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  startPostScheduler();
   console.log(`✓ Backend running on http://localhost:${PORT}`);
   console.log(`✓ Frontend should connect to http://localhost:${PORT}/api`);
 });

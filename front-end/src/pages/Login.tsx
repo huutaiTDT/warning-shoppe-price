@@ -22,10 +22,16 @@ export default function LoginPage() {
       const res = await authAPI.login(values.username, values.password);
       const data = res.data;
 
-      if (data.user?.token) {
-        setAuthSession(data.user);
+      if (data.user && data.token) {
+        setAuthSession(data.user, data.token);
         message.success("Đăng nhập thành công");
-        navigate("/dashboard");
+
+        // If must change password, redirect to change password page
+        if (data.user.mustChangePassword) {
+          navigate("/change-password");
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || "Đăng nhập thất bại";

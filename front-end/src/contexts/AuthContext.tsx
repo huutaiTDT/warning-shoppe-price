@@ -14,8 +14,10 @@ type AuthContextValue = {
   token: string | null;
   isAuthenticated: boolean;
   loading: boolean;
-  setAuthSession: (user: AuthUser) => void;
+  mustChangePassword: boolean;
+  setAuthSession: (user: AuthUser, token: string) => void;
   clearAuthSession: () => void;
+  type: "ADMIN" | "STAFF" | null;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -34,10 +36,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
-  const setAuthSession = (nextUser: AuthUser) => {
-    setStoredAuthSession(nextUser);
+  const setAuthSession = (nextUser: AuthUser, nextToken: string) => {
+    setStoredAuthSession(nextUser, nextToken);
     setUser(nextUser);
-    setToken(nextUser.token);
+    setToken(nextToken);
   };
 
   const clearAuthSession = () => {
@@ -52,8 +54,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       token,
       isAuthenticated: Boolean(token),
       loading,
+      mustChangePassword: user?.mustChangePassword ?? false,
       setAuthSession,
       clearAuthSession,
+      type: user?.type ?? null,
     }),
     [user, token, loading],
   );

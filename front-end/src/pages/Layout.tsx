@@ -8,10 +8,10 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  SettingOutlined,
   ShopOutlined,
   ShoppingOutlined,
   TagsOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import {
   Avatar,
@@ -32,7 +32,7 @@ export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, clearAuthSession } = useAuth();
+  const { user, type, clearAuthSession } = useAuth();
 
   const breadcrumbItems = useMemo(() => {
     const path = location.pathname;
@@ -78,6 +78,20 @@ export default function DashboardLayout() {
       ];
     }
 
+    if (path === "/dashboard/master-products") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: "Master Products" },
+      ];
+    }
+
+    if (path === "/dashboard/user-brand-permissions") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: "Phân quyền User-Brand" },
+      ];
+    }
+
     if (path === "/dashboard/products/new") {
       return [
         { title: <Link to='/dashboard'>Tổng quan</Link> },
@@ -120,6 +134,13 @@ export default function DashboardLayout() {
       return [
         { title: <Link to='/dashboard'>Tổng quan</Link> },
         { title: "Account Settings" },
+      ];
+    }
+
+    if (path === "/dashboard/admin/accounts") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: "Quản lý tài khoản" },
       ];
     }
 
@@ -178,40 +199,24 @@ export default function DashboardLayout() {
       label: <Link to='/dashboard/shops'>Cửa hàng</Link>,
     },
     {
-      key: "/dashboard/products",
+      key: "/dashboard/master-products",
       icon: <ShoppingOutlined />,
-      label: <Link to='/dashboard/products'>Sản phẩm</Link>,
+      label: <Link to='/dashboard/master-products'>Sản phẩm</Link>,
     },
     {
       key: "/dashboard/crawl-history",
       icon: <HistoryOutlined />,
       label: <Link to='/dashboard/crawl-history'>Lịch sử quét</Link>,
     },
-    ...(user?.is_aff ?
+    ...(type === "ADMIN" ?
       [
         {
-          key: "/dashboard/settings",
-          icon: <SettingOutlined />,
-          label: <Link to='/dashboard/settings'>Cài đặt</Link>,
-        },
-        {
-          key: "/dashboard/account-settings",
-          icon: <SettingOutlined />,
-          label: <Link to='/dashboard/account-settings'>Account Settings</Link>,
-        },
-        {
-          key: "/dashboard/post-schedules",
-          icon: <HistoryOutlined />,
-          label: <Link to='/dashboard/post-schedules'>Lịch bài viết</Link>,
+          key: "/dashboard/admin/accounts",
+          icon: <UserOutlined />,
+          label: <Link to='/dashboard/admin/accounts'>Quản lý tài khoản</Link>,
         },
       ]
-    : [
-        {
-          key: "/dashboard/settings",
-          icon: <SettingOutlined />,
-          label: <Link to='/dashboard/settings'>Cài đặt</Link>,
-        },
-      ]),
+    : []),
   ];
 
   const userMenu = {

@@ -2,6 +2,7 @@
 
 import axios from "axios";
 import { Router } from "express";
+import { requireAuthUserId } from "../lib/requestAuth.js";
 import { supabase } from "../lib/supabase.js";
 
 const router = Router();
@@ -11,6 +12,9 @@ router.post("/:id/crawl", async (req, res) => {
   let crawlHistoryId = null;
 
   try {
+    const { userId } = requireAuthUserId(req, res);
+    if (!userId) return;
+
     const shopId = req.params.id;
 
     // Get shop details
@@ -26,7 +30,7 @@ router.post("/:id/crawl", async (req, res) => {
 
     // Create crawl history record when crawl starts.
     const { data: createdHistory, error: historyCreateError } = await supabase
-      .from("crawl_history")
+      .from("crawl_histories")
       .insert({
         shop_id: shopId,
         status: "pending",
@@ -41,7 +45,7 @@ router.post("/:id/crawl", async (req, res) => {
 
     // Check if products already exist
     const { count } = await supabase
-      .from("products_aff")
+      .from("shop_products")
       .select("*", { count: "exact", head: true })
       .eq("shop_id", shopId);
 
@@ -59,7 +63,7 @@ router.post("/:id/crawl", async (req, res) => {
 
       if (crawlHistoryId) {
         await supabase
-          .from("crawl_history")
+          .from("crawl_histories")
           .update({
             product_count: count || 0,
             crawled_count: count || 0,
@@ -111,7 +115,7 @@ router.post("/:id/crawl", async (req, res) => {
 
       if (crawlHistoryId) {
         await supabase
-          .from("crawl_history")
+          .from("crawl_histories")
           .update({
             status: "failed",
             completed_at: new Date(),
@@ -137,13 +141,13 @@ router.post("/:id/crawl", async (req, res) => {
     }
 
     const { count: crawledCount } = await supabase
-      .from("products_aff")
+      .from("shop_products")
       .select("*", { count: "exact", head: true })
       .eq("shop_id", shopId);
 
     if (crawlHistoryId) {
       await supabase
-        .from("crawl_history")
+        .from("crawl_histories")
         .update({
           product_count: crawledCount || 0,
           crawled_count: crawledCount || 0,
@@ -168,7 +172,7 @@ router.post("/:id/crawl", async (req, res) => {
 
     if (crawlHistoryId) {
       await supabase
-        .from("crawl_history")
+        .from("crawl_histories")
         .update({
           status: "failed",
           completed_at: new Date(),

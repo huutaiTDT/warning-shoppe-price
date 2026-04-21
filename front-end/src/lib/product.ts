@@ -40,5 +40,9 @@ export const normalizeProduct = (product: any) => {
     shopPlatform: product.shopPlatform ?? product.shops?.platform ?? null,
     thumbnail: product.thumbnail ?? product.image ?? "",
     brand: product.brand ?? product.brandName ?? "",
+    variants:
+      Array.isArray(product.variants) ? product.variants
+      : Array.isArray(product.variant) ? product.variant
+      : [],
   };
 };

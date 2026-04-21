@@ -64,10 +64,7 @@ export default function ShopSnapshotPopover({
       ]);
 
       const shop = shopRes.data || {};
-      const brandNames =
-        shop.shop_brands
-          ?.map((sb: any) => sb.master_brands?.name)
-          .filter(Boolean) || [];
+      const brandNames: string[] = []; // shop_brands relationship doesn't exist in schema
 
       const nextSnapshot: SnapshotData = {
         id: shop.id || shopId,

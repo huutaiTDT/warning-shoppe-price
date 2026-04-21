@@ -1,6 +1,7 @@
 /** @format */
 
 import { Router } from "express";
+import { requireAuthUserId } from "../lib/requestAuth.js";
 import { supabase } from "../lib/supabase.js";
 
 const router = Router();
@@ -8,17 +9,27 @@ const router = Router();
 // GET: List brands with pagination
 router.get("/", async (req, res) => {
   try {
+    const { userId, type } = requireAuthUserId(req);
+    if (!userId) {
+      res.status(500).message("Unauthorized");
+      return;
+    }
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 200);
     const search = (req.query.search || "").toString().trim();
     const active = (req.query.active || "").toString().trim();
     const offset = (page - 1) * limit;
 
-    let query = supabase
-      .from("master_brands")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false });
+    let query = supabase.from("brands").select("*", { count: "exact" });
 
+    if (type != "ADMIN") {
+      const { data: userBrand, error: errorBrand } = await supabase
+        .from("account_brand_permissions")
+        .select("*")
+        .eq("user_id", userId);
+      const brandUsers = userBrand.map((x) => x.brand_id);
+      query.in("id", brandUsers);
+    }
     if (search) {
       query = query.or(`name.ilike.%${search}%,code.ilike.%${search}%`);
     }
@@ -28,6 +39,8 @@ router.get("/", async (req, res) => {
     } else if (active === "false") {
       query = query.eq("is_active", false);
     }
+
+    query.order("created_at", { ascending: false });
 
     const {
       data: brands,
@@ -58,7 +71,7 @@ router.get("/:id", async (req, res) => {
     const { id } = req.params;
 
     const { data: brand, error } = await supabase
-      .from("master_brands")
+      .from("brands")
       .select("*")
       .eq("id", id)
       .single();
@@ -87,7 +100,7 @@ router.post("/", async (req, res) => {
     }
 
     const { data: brand, error } = await supabase
-      .from("master_brands")
+      .from("brands")
       .insert({
         name,
         code: code || null,
@@ -122,7 +135,7 @@ router.put("/:id", async (req, res) => {
     }
 
     const { data: brand, error } = await supabase
-      .from("master_brands")
+      .from("brands")
       .update({
         name,
         code: code || null,
@@ -150,10 +163,7 @@ router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
-      .from("master_brands")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("brands").delete().eq("id", id);
 
     if (error) {
       return res.status(500).json({ error: error.message });
@@ -162,6 +172,32 @@ router.delete("/:id", async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error("Error deleting brand:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET: Select box options
+router.get("/select-box", async (req, res) => {
+  try {
+    const { data: brands, error } = await supabase
+      .from("brands")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("name", { ascending: true });
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json(
+      (brands || []).map((brand) => ({
+        value: brand.id,
+        label: brand.name,
+        ...brand,
+      })),
+    );
+  } catch (error) {
+    console.error("Error fetching brand select box:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

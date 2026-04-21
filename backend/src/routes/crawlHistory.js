@@ -27,7 +27,7 @@ router.get("/", async (req, res) => {
     const offset = (page - 1) * limit;
 
     let query = supabase
-      .from("crawl_history")
+      .from("crawl_histories")
       .select(
         "id, shop_id, product_count, crawled_count, status, started_at, completed_at, error_message, shops:shop_id(id, name)",
         { count: "exact" },
@@ -73,7 +73,7 @@ router.get("/:id", async (req, res) => {
     const { id } = req.params;
 
     const { data, error } = await supabase
-      .from("crawl_history")
+      .from("crawl_histories")
       .select(
         "id, shop_id, product_count, crawled_count, status, started_at, completed_at, error_message, shops:shop_id(id, name)",
       )
