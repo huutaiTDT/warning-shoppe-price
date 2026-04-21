@@ -35,7 +35,7 @@ jobs:
 
       - name: Create .env file
         run: |
-          cd backend
+          cd front-end
           printf "%b" "${{ vars.ENV2 }}" > .env
           cat <<EOF > .env
           ${{vars.ENV2}}
@@ -43,7 +43,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          cd backend
+          cd front-end
           docker build -t $IMAGE_NAME:$TAG_NAME .
 
       - name: Add tag docker image (optional)
@@ -54,7 +54,7 @@ jobs:
 
       - name: Copy nginx config & script to server
         run: |
-          cd backend
+          cd front-end
           sshpass -p $SSH_PASS scp -o StrictHostKeyChecking=no -P 24700 ./warning-price-shoppe.conf ./config.sh ${{env.SSH_USERNAME}}@${{env.SSH_HOST}}:/container/
 
       - name: Deploy to Server (using SSH and Docker)
