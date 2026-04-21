@@ -69,7 +69,7 @@ jobs:
                 docker images --filter=reference=${{ env.DOCKER_USERNAME }}/${{env.IMAGE_NAME}} --quiet | xargs -r docker rmi -f
             fi
             docker pull ${{ env.DOCKER_USERNAME }}/${{env.IMAGE_NAME}}:${{env.TAG_NAME}}_${{ github.sha }}
-            docker run -d -p 3112:80 --name ${{ env.IMAGE_NAME }} --restart always ${{ env.DOCKER_USERNAME }}/${{env.IMAGE_NAME}}:${{env.TAG_NAME}}_${{ github.sha }}
+            docker run -d -p 3112:5173 --name ${{ env.IMAGE_NAME }} --restart always ${{ env.DOCKER_USERNAME }}/${{env.IMAGE_NAME}}:${{env.TAG_NAME}}_${{ github.sha }}
           EOF
 
       - name: Run custom config script on server
