@@ -225,7 +225,11 @@ export default function ShopsPage() {
               type='primary'
               size='large'
               icon={<Play size={14} />}
-              onClick={() => handleCrawl(record.id, record.name || "Cửa hàng")}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleCrawl(record.id, record.name || "Cửa hàng");
+              }}
             />
           )}
           <Link to={`/dashboard/shops/${record.id}/edit`}>

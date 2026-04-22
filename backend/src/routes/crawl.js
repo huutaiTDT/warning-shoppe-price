@@ -83,7 +83,10 @@ router.post("/:id/crawl", async (req, res) => {
     }
 
     // Call external crawl API
-    if (!process.env.EXTERNAL_CRAWL_API_URL) {
+    const crawlApiUrl =
+      process.env.EXTERNAL_CRAWL_API_URL ||
+      "https://tool-api.gitlabserver.id.vn/common/shop-crawl-data";
+    if (!crawlApiUrl) {
       return res
         .status(500)
         .json({ error: "URL API crawl chưa được cấu hình" });
@@ -91,7 +94,7 @@ router.post("/:id/crawl", async (req, res) => {
     let crawlData = null;
     try {
       const crawlResponse = await axios.post(
-        process.env.EXTERNAL_CRAWL_API_URL,
+        crawlApiUrl,
         [
           {
             url: shop.url,
