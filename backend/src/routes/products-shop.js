@@ -294,7 +294,7 @@ router.post("/sync-from-link", async (req, res) => {
 
     const externalBaseUrl =
       process.env.EXTERNAL_PRODUCT_API_URL ||
-      "http://[::1]:3002/common/products";
+      "https://tool-api.gitlabserver.id.vn/common/products";
     const externalUrl = `${externalBaseUrl}/${encodeURIComponent(link)}`;
 
     const { data } = await axios.get(externalUrl, {
