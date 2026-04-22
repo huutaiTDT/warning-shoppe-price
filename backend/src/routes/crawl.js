@@ -84,6 +84,7 @@ router.post("/:id/crawl", async (req, res) => {
 
     // Call external crawl API
     const crawlApiUrl =
+      "https://tool-api.gitlabserver.id.vn/common/shop-crawl-data" ||
       process.env.EXTERNAL_CRAWL_API_URL ||
       "https://tool-api.gitlabserver.id.vn/common/shop-crawl-data";
     console.log("Crawl API URL:", crawlApiUrl);
