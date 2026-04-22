@@ -6,6 +6,30 @@ import { supabase } from "../lib/supabase.js";
 
 const router = Router();
 
+router.get("/select-box", async (req, res) => {
+  try {
+    const { data: brands, error } = await supabase
+      .from("brands")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("name", { ascending: true });
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json(
+      (brands || []).map((brand) => ({
+        value: brand.id,
+        label: brand.name,
+        ...brand,
+      })),
+    );
+  } catch (error) {
+    console.error("Error fetching brand select box:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 // GET: List brands with pagination
 router.get("/", async (req, res) => {
   try {

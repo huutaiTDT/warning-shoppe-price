@@ -1,9 +1,9 @@
 /** @format */
 
 import Pagination from "@/components/pagination";
-import { productsAPI, shopsAPI } from "@/services/api";
-import { Button, message, Modal, Spin, Table, Tag } from "antd";
-import { ArrowLeft, Calendar, Edit, History } from "lucide-react";
+import { brandsAPI, productsAPI, shopsAPI } from "@/services/api";
+import { Button, Input, message, Modal, Select, Spin, Table, Tag } from "antd";
+import { ArrowLeft, Calendar, Edit, History, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -44,6 +44,12 @@ export default function ShopDetail() {
   const [productsLoading, setProductsLoading] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 });
   const [total, setTotal] = useState(0);
+  const [searchName, setSearchName] = useState("");
+  const [searchBrand, setSearchBrand] = useState<string | undefined>();
+  const [brandOptions, setBrandOptions] = useState<
+    Array<{ label: string; value: string }>
+  >([]);
+  const [filterLoading, setFilterLoading] = useState(false);
 
   // Price History state
   const [priceHistoryModal, setPriceHistoryModal] = useState(false);
@@ -64,11 +70,29 @@ export default function ShopDetail() {
     }
   };
 
-  const fetchShopProducts = async (page = 1, limit = 10) => {
+  const fetchFilterOptions = async () => {
+    if (!id) return;
+    try {
+      setFilterLoading(true);
+      const res = await brandsAPI.selectBox();
+      setBrandOptions(res.data || []);
+    } catch (error) {
+      console.error("Lỗi tải tùy chọn lọc:", error);
+    } finally {
+      setFilterLoading(false);
+    }
+  };
+
+  const fetchShopProducts = async (
+    page = 1,
+    limit = 10,
+    name = "",
+    brand = "",
+  ) => {
     if (!id) return;
     try {
       setProductsLoading(true);
-      const res = await shopsAPI.getProducts(id, page, limit);
+      const res = await shopsAPI.getProducts(id, page, limit, name, brand);
       setProducts(res.data.products || []);
       setTotal(res.data.total || 0);
       setPagination({ page, pageSize: limit });
@@ -100,11 +124,26 @@ export default function ShopDetail() {
 
   useEffect(() => {
     fetchShopDetail();
+    fetchFilterOptions();
     fetchShopProducts(pagination.page, pagination.pageSize);
   }, [id]);
 
   const handlePageChange = (newPage: number) => {
-    fetchShopProducts(newPage, pagination.pageSize);
+    fetchShopProducts(newPage, pagination.pageSize, searchName, searchBrand);
+  };
+
+  const handleSearch = () => {
+    fetchShopProducts(1, pagination.pageSize, searchName, searchBrand || "");
+  };
+
+  const handleClearSearch = () => {
+    setSearchName("");
+    setSearchBrand(undefined);
+    fetchShopProducts(1, pagination.pageSize, "", "");
+  };
+
+  const handleBrandChange = (value: string | undefined) => {
+    setSearchBrand(value);
   };
 
   const columns = [
@@ -271,7 +310,45 @@ export default function ShopDetail() {
           padding: 10,
         }}
         className='flex-1 flex flex-col bg-gray-800 rounded-lg p-6 border border-gray-700 min-h-0'>
-        <h2 className='text-lg font-semibold mb-4'>Sản phẩm ({total})</h2>
+        <div className='flex items-center justify-between mb-4'>
+          <h2 className='text-lg font-semibold'>Sản phẩm ({total})</h2>
+        </div>
+
+        {/* Search Filters */}
+        <div
+          className='mb-4 flex gap-2 flex-wrap bg-black'
+          style={{
+            padding: 10,
+          }}>
+          <Input
+            placeholder='Nhập tên sản phẩm...'
+            value={searchName || ""}
+            onChange={(e) => setSearchName(e.target.value)}
+            onPressEnter={handleSearch}
+            style={{ minWidth: 200, flex: 1 }}
+          />
+          <Select
+            placeholder='Chọn thương hiệu...'
+            value={searchBrand}
+            onChange={handleBrandChange}
+            allowClear
+            loading={filterLoading}
+            style={{ minWidth: 200, flex: 1 }}
+            options={brandOptions}
+          />
+          <Button type='primary' onClick={handleSearch}>
+            Lọc
+          </Button>
+          {(searchName || searchBrand) && (
+            <Button
+              type='text'
+              icon={<X size={14} />}
+              onClick={handleClearSearch}
+              className='text-gray-400 hover:text-white!'>
+              Xóa bộ lọc
+            </Button>
+          )}
+        </div>
         {/* header */}
         {columns.length > 0 && (
           <div

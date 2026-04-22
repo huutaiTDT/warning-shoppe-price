@@ -263,7 +263,7 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// GET: Get shop products with pagination
+// GET: Get shop products with pagination and search
 router.get("/:id/products", async (req, res) => {
   try {
     const { userId } = requireAuthUserId(req, res);
@@ -274,6 +274,8 @@ router.get("/:id/products", async (req, res) => {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 200);
     const offset = (page - 1) * limit;
+    const search = (req.query.search || "").toString().trim();
+    const brand = (req.query.brand || "").toString().trim();
 
     const { data: ownedShop, error: shopError } = await supabase
       .from("shops")
@@ -281,11 +283,24 @@ router.get("/:id/products", async (req, res) => {
       .eq("id", id)
       .maybeSingle();
 
+    let query = supabase
+      .from("shop_products")
+      .select("*", { count: "exact" })
+      .eq("shop_id", id);
+
+    // Apply search filters
+    if (search) {
+      query = query.or(`name.ilike.%${search}%`);
+    }
+    if (brand) {
+      query = query.ilike("brand", `%${brand}%`);
+    }
+
     if (countOnly) {
-      const { count, error } = await supabase
-        .from("shop_products")
-        .select("*", { count: "exact", head: true })
-        .eq("shop_id", id);
+      const { count, error } = await query.select("*", {
+        count: "exact",
+        head: true,
+      });
 
       if (error) {
         return res.status(500).json({ error: error.message });
@@ -298,10 +313,7 @@ router.get("/:id/products", async (req, res) => {
       data: products,
       error,
       count,
-    } = await supabase
-      .from("shop_products")
-      .select("*", { count: "exact" })
-      .eq("shop_id", id)
+    } = await query
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 

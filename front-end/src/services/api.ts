@@ -75,12 +75,13 @@ export const shopsAPI = {
   update: (id: string, data: any) => api.put(`/master-data/shops/${id}`, data),
   delete: (id: string) => api.delete(`/master-data/shops/${id}`),
   crawl: (id: string) => api.post(`/master-data/shops/${id}/crawl`),
-  getProducts: (id: string, page = 1, limit = 10, countOnly = false) =>
+  getProducts: (id: string, page = 1, limit = 10, search = "", brand = "") =>
     api.get(`/master-data/shops/${id}/products`, {
       params: {
-        page: countOnly ? undefined : page,
-        limit: countOnly ? undefined : limit,
-        count: countOnly || undefined,
+        page,
+        limit,
+        search: search || undefined,
+        brand: brand || undefined,
       },
     }),
   resetProductStatus: (id: string) =>
@@ -152,6 +153,7 @@ export const brandsAPI = {
   create: (data: any) => api.post("/master-data/brands", data),
   update: (id: string, data: any) => api.put(`/master-data/brands/${id}`, data),
   delete: (id: string) => api.delete(`/master-data/brands/${id}`),
+  selectBox: () => api.get("/master-data/brands/select-box"),
 };
 
 export const masterProductsAPI = {

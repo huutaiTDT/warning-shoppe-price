@@ -74,7 +74,7 @@ export default function ShopsPage() {
       const countResults = await Promise.all(
         list.map(async (shop: any) => {
           try {
-            const countRes = await shopsAPI.getProducts(shop.id, 1, 10, true);
+            const countRes = await shopsAPI.getProducts(shop.id, 1, 10);
             return {
               ...shop,
               productCount: Number(
