@@ -86,6 +86,7 @@ router.post("/:id/crawl", async (req, res) => {
     const crawlApiUrl =
       process.env.EXTERNAL_CRAWL_API_URL ||
       "https://tool-api.gitlabserver.id.vn/common/shop-crawl-data";
+    console.log("Crawl API URL:", crawlApiUrl);
     if (!crawlApiUrl) {
       return res
         .status(500)
