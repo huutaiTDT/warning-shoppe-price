@@ -629,13 +629,22 @@ router.get("/:id/get-warning", async (req, res) => {
     }
     const name = product.name || "";
     const price = product.listed_price || 0;
-    const variantString = product?.variants?.join(", ") || "";
+    const variants = product?.variants;
     const warnings = [];
-    const { data: shopProducts, error: shopProductError } = await supabase
+    const query = supabase
       .from("shop_products")
       .select("id, name, price_min, price, price_max, shop_id")
-      .or(`name.ilike.%${name}%,name.ilike.%${variantString}%`)
       .or(`price_min.lt.${price},price.lt.${price},price_max.lt.${price}`);
+    for (const row of variants || []) {
+      const variantString = row.toString().trim()?.toLowerCase();
+      if (variantString) {
+        query.or(
+          `name.ilike.%${variantString}%,name.ilike.%${variantString}%,name.ilike.%${name}%`,
+        );
+      }
+    }
+    const { data: shopProducts, error: shopProductError } = await query;
+
     for (const sp of shopProducts || []) {
       let shopInfo = null;
       try {

@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase.js";
 const scanAndUpdateWarningProduct = async (productId) => {
   const { data: product, error: getError } = await supabase
     .from("products")
-    .select("id, name, listed_price")
+    .select("id, name, listed_price, variants")
     .eq("id", productId)
     .single();
   if (getError || !product) {
@@ -12,11 +12,28 @@ const scanAndUpdateWarningProduct = async (productId) => {
   }
   const name = product.name || "";
   const price = product.listed_price || 0;
-  const { data: shopProducts, error: shopProductError } = await supabase
+  const variants = product?.variants;
+  const warnings = [];
+  const query = supabase
     .from("shop_products")
-    .select("id, name, price_min, price, price_max")
-    .ilike("name", `%${name}%`)
+    .select("id, name, price_min, price, price_max, shop_id")
     .or(`price_min.lt.${price},price.lt.${price},price_max.lt.${price}`);
+  for (const row of variants || []) {
+    const variantString = row.toString().trim()?.toLowerCase();
+    if (variantString) {
+      query.or(
+        `name.ilike.%${variantString}%,name.ilike.%${variantString}%,name.ilike.%${name}%`,
+      );
+    }
+  }
+  const { data: shopProducts, error: shopProductError } = await query;
+  if (shopProductError) {
+    console.error(
+      "Error fetching shop products for warning check:",
+      shopProductError,
+    );
+    return;
+  }
   const isWarning = shopProducts?.length > 0 ? true : false;
   await supabase
     .from("products")

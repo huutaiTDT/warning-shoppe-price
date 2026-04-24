@@ -29,9 +29,9 @@ interface Product {
 interface PriceHistory {
   id?: string;
   price: number;
-  price_min?: number;
-  price_max?: number;
-  created_at: string;
+  priceMin?: number;
+  priceMax?: number;
+  crawledAt?: any;
 }
 
 export default function ShopDetail() {
@@ -107,7 +107,7 @@ export default function ShopDetail() {
     setPriceHistoryLoading(true);
     try {
       const res = await productsAPI.getPriceHistory(productId, 100);
-      setPriceHistory(res.data.history || res.data || []);
+      setPriceHistory(res.data.items || res.data || []);
     } catch (error) {
       message.error("Lỗi tải lịch sử giá");
       setPriceHistory([]);
@@ -421,53 +421,19 @@ export default function ShopDetail() {
           </div>
         : priceHistory.length > 0 ?
           <div className='space-y-3'>
-            {/* Stats */}
-            <div className='grid grid-cols-3 gap-3 mb-4'>
-              <div className='bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-center'>
-                <div className='text-xs text-blue-400 font-semibold mb-1'>
-                  GIÁ HIỆN TẠI
-                </div>
-                <div className='text-xl font-bold text-blue-400'>
-                  ₫{priceHistory[0]?.price?.toLocaleString?.()}
-                </div>
-              </div>
-              <div className='bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-center'>
-                <div className='text-xs text-green-400 font-semibold mb-1'>
-                  GIÁ THẤP NHẤT
-                </div>
-                <div className='text-xl font-bold text-green-400'>
-                  ₫
-                  {Math.min(
-                    ...priceHistory.map((p) => p.price_min || p.price),
-                  ).toLocaleString?.()}
-                </div>
-              </div>
-              <div className='bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-center'>
-                <div className='text-xs text-red-400 font-semibold mb-1'>
-                  GIÁ CAO NHẤT
-                </div>
-                <div className='text-xl font-bold text-red-400'>
-                  ₫
-                  {Math.max(
-                    ...priceHistory.map((p) => p.price_max || p.price),
-                  ).toLocaleString?.()}
-                </div>
-              </div>
-            </div>
-
             {/* Timeline */}
-            <div className='bg-gray-800/40 border border-gray-700/50 rounded-lg p-4 max-h-96 overflow-y-auto'>
+            <div
+              style={{
+                padding: 10,
+              }}
+              className='bg-gray-800/40 border border-gray-700/50 rounded-lg p-4 max-h-96 overflow-y-auto'>
               <div className='space-y-2'>
                 {priceHistory.map((record, index) => {
-                  const isLatest = index === 0;
-                  const nextRecord = priceHistory[index + 1];
-                  const priceDiff =
-                    nextRecord ? record.price - nextRecord.price : 0;
-                  const priceChanged = priceDiff !== 0;
-                  const priceUp = priceDiff > 0;
-
                   return (
                     <div
+                      style={{
+                        padding: 10,
+                      }}
                       key={index}
                       className={`flex items-start gap-3 p-3 rounded-lg border transition-all ${
                         isLatest ?
@@ -484,19 +450,6 @@ export default function ShopDetail() {
                       {/* Content */}
                       <div className='flex-1'>
                         <div className='flex items-center justify-between mb-1'>
-                          <div className='flex items-center gap-2'>
-                            <span className='font-semibold text-gray-200'>
-                              ₫{record.price?.toLocaleString?.()}
-                            </span>
-                            {priceChanged && (
-                              <Tag
-                                color={priceUp ? "volcano" : "green"}
-                                className='text-xs'>
-                                {priceUp ? "↑" : "↓"} ₫
-                                {Math.abs(priceDiff).toLocaleString?.()}
-                              </Tag>
-                            )}
-                          </div>
                           {isLatest && (
                             <Tag color='blue' className='text-xs'>
                               Mới nhất
@@ -505,14 +458,12 @@ export default function ShopDetail() {
                         </div>
                         <div className='flex items-center gap-1 text-xs text-gray-400'>
                           <Calendar size={12} />
-                          {new Date(record.created_at).toLocaleString?.(
-                            "vi-VN",
-                          )}
+                          {new Date(record.crawledAt).toLocaleString?.("vi-VN")}
                         </div>
-                        {record.price_min && record.price_max && (
+                        {record.priceMin && record.priceMax && (
                           <div className='text-xs text-gray-500 mt-1'>
-                            Range: ₫{record.price_min?.toLocaleString?.()} - ₫
-                            {record.price_max?.toLocaleString?.()}
+                            Range: ₫{record.priceMin?.toLocaleString?.()} - ₫
+                            {record.priceMax?.toLocaleString?.()}
                           </div>
                         )}
                       </div>
@@ -523,9 +474,13 @@ export default function ShopDetail() {
             </div>
 
             {/* Summary */}
-            <div className='bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-center text-sm'>
+            <div
+              style={{
+                padding: 10,
+              }}
+              className='bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-center text-sm'>
               <div className='text-gray-300'>
-                📊 Theo dõi từ{" "}
+                Theo dõi từ{" "}
                 <span className='font-semibold text-amber-400'>
                   {priceHistory.length}
                 </span>{" "}
