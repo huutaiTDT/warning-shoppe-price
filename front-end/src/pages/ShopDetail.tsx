@@ -429,6 +429,8 @@ export default function ShopDetail() {
               className='bg-gray-800/40 border border-gray-700/50 rounded-lg p-4 max-h-96 overflow-y-auto'>
               <div className='space-y-2'>
                 {priceHistory.map((record, index) => {
+                  const isLatest = index === 0;
+
                   return (
                     <div
                       style={{
