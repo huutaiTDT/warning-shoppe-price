@@ -18,15 +18,18 @@ const scanAndUpdateWarningProduct = async (productId) => {
     .from("shop_products")
     .select("id, name, price_min, price, price_max, shop_id")
     .or(`price_min.lt.${price},price.lt.${price},price_max.lt.${price}`);
+  let queryFilter = ``;
   for (const row of variants || []) {
     const variantString = row.toString().trim()?.toLowerCase();
     if (variantString) {
-      query.or(
-        `name.ilike.%${variantString}%,name.ilike.%${variantString}%,name.ilike.%${name}%`,
-      );
+      if (queryFilter.length > 0) {
+        queryFilter += ",";
+      }
+      queryFilter += `name.ilike.%${variantString}%`;
     }
   }
-  const { data: shopProducts, error: shopProductError } = await query;
+  const { data: shopProducts, error: shopProductError } =
+    await query.or(queryFilter);
   if (shopProductError) {
     console.error(
       "Error fetching shop products for warning check:",

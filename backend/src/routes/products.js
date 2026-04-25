@@ -638,9 +638,7 @@ router.get("/:id/get-warning", async (req, res) => {
     for (const row of variants || []) {
       const variantString = row.toString().trim()?.toLowerCase();
       if (variantString) {
-        query.or(
-          `name.ilike.%${variantString}%,name.ilike.%${variantString}%,name.ilike.%${name}%`,
-        );
+        query.or(`name.ilike.%${variantString}%`);
       }
     }
     const { data: shopProducts, error: shopProductError } = await query;
