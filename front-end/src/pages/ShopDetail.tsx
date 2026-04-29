@@ -2,10 +2,30 @@
 
 import Pagination from "@/components/pagination";
 import { brandsAPI, productsAPI, shopsAPI } from "@/services/api";
-import { Button, Input, message, Modal, Select, Spin, Table, Tag } from "antd";
-import { ArrowLeft, Calendar, Edit, History, X } from "lucide-react";
+import {
+  Button,
+  Input,
+  message,
+  Modal,
+  Progress,
+  Select,
+  Spin,
+  Table,
+  Tag,
+} from "antd";
+import {
+  ArrowLeft,
+  Calendar,
+  ChevronDown,
+  Edit,
+  History,
+  Upload as UploadIcon,
+  X,
+} from "lucide-react";
+import Papa from "papaparse";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import * as XLSX from "xlsx";
 
 interface Shop {
   id: string;
@@ -56,6 +76,20 @@ export default function ShopDetail() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
   const [priceHistoryLoading, setPriceHistoryLoading] = useState(false);
+
+  // Import Excel state
+  const [importModal, setImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importResults, setImportResults] = useState<{
+    success: number;
+    failed: number;
+    errors: string[];
+  }>({ success: 0, failed: 0, errors: [] });
+
+  // Collapse state
+  const [isShopInfoCollapsed, setIsShopInfoCollapsed] = useState(true);
 
   const fetchShopDetail = async () => {
     if (!id) return;
@@ -113,6 +147,174 @@ export default function ShopDetail() {
       setPriceHistory([]);
     } finally {
       setPriceHistoryLoading(false);
+    }
+  };
+
+  // Parse Excel/CSV file
+  const parseExcelFile = (file: File): Promise<any[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+
+          if (file.name.endsWith(".csv")) {
+            // Parse CSV
+            Papa.parse(data as string, {
+              header: true,
+              dynamicTyping: false,
+              skipEmptyLines: true,
+              complete: (results) => {
+                resolve(results.data || []);
+              },
+              error: (error: any) => {
+                reject(new Error(`CSV Parse Error: ${error.message}`));
+              },
+            });
+          } else {
+            // Parse Excel
+            const workbook = XLSX.read(data, { type: "binary" });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(firstSheet);
+            resolve(rows || []);
+          }
+        } catch (error: any) {
+          reject(error);
+        }
+      };
+
+      if (file.name.endsWith(".csv")) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsBinaryString(file);
+      }
+    });
+  };
+
+  // Transform row data to product object
+  const transformRowToProduct = (row: any) => {
+    const productName =
+      row["Tên sản phẩm"] ||
+      row["tenSanPham"] ||
+      row["Product Name"] ||
+      row["name"];
+    const productUrl = row["URL"] || row["url"];
+    const productId = row["Product ID"] || row["productId"] || row["id"];
+
+    // Validate required fields
+    if (!productName?.toString().trim() || !productUrl?.toString().trim()) {
+      throw new Error("Thiếu tên sản phẩm hoặc URL");
+    }
+
+    return {
+      name: productName.toString().trim(),
+      url: productUrl.toString().trim(),
+      product_id: productId ? productId.toString().trim() : undefined,
+      brand: row["Brand"]?.toString().trim() || undefined,
+      price: row["Giá"]?.toString().replace(/[^\d]/g, "") || undefined,
+      discount:
+        row["Chiết khấu"]?.toString().replace(/[^\d]/g, "") || undefined,
+      rating: row["Đánh giá"] ? parseFloat(row["Đánh giá"]) : undefined,
+      sold: row["Đã bán"]?.toString().replace(/[^\d]/g, "") || undefined,
+      status: row["Trạng thái"]?.toString().trim() || "active",
+      shop_id: id,
+    };
+  };
+
+  // Validate and import products
+  const handleImportProducts = async () => {
+    if (!importFile || !id) {
+      message.error("Vui lòng chọn file để import");
+      return;
+    }
+
+    setImportLoading(true);
+    setImportProgress(0);
+    setImportResults({ success: 0, failed: 0, errors: [] });
+
+    try {
+      const rows = await parseExcelFile(importFile);
+
+      if (!rows?.length) {
+        message.error("File không có dữ liệu");
+        setImportLoading(false);
+        return;
+      }
+
+      const errors: string[] = [];
+      const validProducts: any = [];
+
+      // Validate and transform rows
+      rows.forEach((row: any, index: number) => {
+        try {
+          const product = transformRowToProduct(row);
+          validProducts.push(product);
+        } catch (error: any) {
+          errors.push(`Row ${index + 2}: ${error.message}`);
+        }
+        setImportProgress(Math.round(((index + 1) / rows.length) * 50));
+      });
+
+      // Stop if no valid products
+      if (validProducts.length === 0) {
+        message.error("Không có sản phẩm hợp lệ để nhập");
+        setImportResults({ success: 0, failed: rows.length, errors });
+        setImportLoading(false);
+        return;
+      }
+
+      // Import valid products
+      await shopsAPI.importProductByExcel(id, validProducts);
+      setImportProgress(100);
+
+      // Refresh product list
+      await fetchShopProducts(1, pagination.pageSize, searchName, searchBrand);
+
+      const failedCount = errors.length;
+      setImportResults({
+        success: validProducts.length,
+        failed: failedCount,
+        errors,
+      });
+
+      message.success(`Nhập thành công ${validProducts.length} sản phẩm`);
+      if (failedCount > 0) {
+        message.warning(`${failedCount} dòng bị bỏ qua do lỗi`);
+      }
+    } catch (error: any) {
+      message.error(`Lỗi: ${error.message}`);
+      setImportResults({
+        success: 0,
+        failed: 0,
+        errors: [error.message],
+      });
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  // Handle file change
+  const handleImportFileChange = (e: any) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const validTypes = [".csv", ".xlsx", ".xls"];
+      const isValid = validTypes.some((type) =>
+        file.name.toLowerCase().endsWith(type),
+      );
+
+      if (!isValid) {
+        message.error("Chỉ hỗ trợ file CSV, XLSX, XLS");
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        // 10MB limit
+        message.error("File quá lớn (max 10MB)");
+        return;
+      }
+
+      setImportFile(file);
     }
   };
 
@@ -246,62 +448,75 @@ export default function ShopDetail() {
         style={{
           padding: 10,
         }}
-        className='bg-gray-800 rounded-lg p-6 border border-gray-700'>
-        <div className='flex justify-between items-start mb-6'>
-          <h2 className='text-lg font-semibold'>Thông tin cửa hàng</h2>
-          <Button
-            type='primary'
-            icon={<Edit size={14} />}
-            onClick={() => navigate(`/dashboard/shops/${id}/edit`)}>
-            Chỉnh sửa
-          </Button>
-        </div>
-
+        className='bg-gray-800 rounded-lg border border-gray-700'>
         <div
-          className='grid grid-cols-1 md:grid-cols-2 gap-6'
-          style={{
-            padding: 10,
-          }}>
-          {/* Name */}
-          <div>
-            <p className='text-sm text-gray-400 mb-1'>Tên cửa hàng</p>
-            <p className='text-white font-medium'>{shop.name}</p>
-          </div>
-
-          {/* Platform */}
-          <div>
-            <p className='text-sm text-gray-400 mb-1'>Nền tảng</p>
-            <p className='text-white font-medium'>{shop.platform}</p>
-          </div>
-
-          {/* Code */}
-          <div>
-            <p className='text-sm text-gray-400 mb-1'>Mã cửa hàng</p>
-            <p className='text-white font-medium'>{shop.code || "-"}</p>
-          </div>
-
-          {/* Created Date */}
-          <div>
-            <p className='text-sm text-gray-400 mb-1'>Tạo lúc</p>
-            <p className='text-white font-medium'>
-              {shop.created_at ?
-                new Date(shop.created_at).toLocaleDateString("vi-VN")
-              : "-"}
-            </p>
-          </div>
-
-          {/* URL */}
-          <div className='md:col-span-2'>
-            <p className='text-sm text-gray-400 mb-1'>URL cửa hàng</p>
-            <a
-              href={shop.url}
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-emerald-500 hover:text-emerald-400 break-all'>
-              {shop.url}
-            </a>
-          </div>
+          className='flex justify-between items-center p-6 cursor-pointer hover:bg-gray-750 transition-colors'
+          onClick={() => setIsShopInfoCollapsed(!isShopInfoCollapsed)}>
+          <h2 className='text-lg font-semibold'>Thông tin cửa hàng</h2>
+          <ChevronDown
+            size={20}
+            className={`transition-transform duration-200 ${
+              isShopInfoCollapsed ? "-rotate-90" : ""
+            }`}
+          />
         </div>
+
+        {!isShopInfoCollapsed && (
+          <div
+            className='grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-700'
+            style={{
+              padding: 16,
+            }}>
+            {/* Name */}
+            <div>
+              <p className='text-sm text-gray-400 mb-1'>Tên cửa hàng</p>
+              <p className='text-white font-medium'>{shop.name}</p>
+            </div>
+
+            {/* Platform */}
+            <div>
+              <p className='text-sm text-gray-400 mb-1'>Nền tảng</p>
+              <p className='text-white font-medium'>{shop.platform}</p>
+            </div>
+
+            {/* Code */}
+            <div>
+              <p className='text-sm text-gray-400 mb-1'>Mã cửa hàng</p>
+              <p className='text-white font-medium'>{shop.code || "-"}</p>
+            </div>
+
+            {/* Created Date */}
+            <div>
+              <p className='text-sm text-gray-400 mb-1'>Tạo lúc</p>
+              <p className='text-white font-medium'>
+                {shop.created_at ?
+                  new Date(shop.created_at).toLocaleDateString("vi-VN")
+                : "-"}
+              </p>
+            </div>
+
+            {/* URL */}
+            <div className='md:col-span-2'>
+              <p className='text-sm text-gray-400 mb-1'>URL cửa hàng</p>
+              <a
+                href={shop.url}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-emerald-500 hover:text-emerald-400 break-all'>
+                {shop.url}
+              </a>
+            </div>
+            {/* Edit Button */}
+            <div className='md:col-span-2 flex justify-end pt-2 border-t border-gray-700'>
+              <Button
+                type='primary'
+                icon={<Edit size={14} />}
+                onClick={() => navigate(`/dashboard/shops/${id}/edit`)}>
+                Chỉnh sửa
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Section 2: Products */}
@@ -312,6 +527,12 @@ export default function ShopDetail() {
         className='flex-1 flex flex-col bg-gray-800 rounded-lg p-6 border border-gray-700 min-h-0'>
         <div className='flex items-center justify-between mb-4'>
           <h2 className='text-lg font-semibold'>Sản phẩm ({total})</h2>
+          <Button
+            type='primary'
+            icon={<UploadIcon size={14} />}
+            onClick={() => setImportModal(true)}>
+            Nhập sản phẩm
+          </Button>
         </div>
 
         {/* Search Filters */}
@@ -398,6 +619,122 @@ export default function ShopDetail() {
           </div>
         </div>
       </div>
+
+      {/* Import Modal */}
+      <Modal
+        open={importModal}
+        onCancel={() => {
+          setImportModal(false);
+          setImportFile(null);
+          setImportProgress(0);
+          setImportResults({ success: 0, failed: 0, errors: [] });
+        }}
+        title='Nhập sản phẩm từ Excel'
+        width={600}
+        footer={[
+          <Button
+            key='cancel'
+            onClick={() => {
+              setImportModal(false);
+              setImportFile(null);
+              setImportProgress(0);
+              setImportResults({ success: 0, failed: 0, errors: [] });
+            }}>
+            Đóng
+          </Button>,
+          <Button
+            key='import'
+            type='primary'
+            loading={importLoading}
+            disabled={!importFile || importLoading}
+            onClick={handleImportProducts}>
+            Nhập
+          </Button>,
+        ]}>
+        <div className='space-y-4'>
+          {/* File Upload */}
+          <div>
+            <label className='block text-sm font-medium mb-2'>
+              Chọn file Excel/CSV
+            </label>
+            <input
+              type='file'
+              accept='.csv,.xlsx,.xls'
+              onChange={handleImportFileChange}
+              className='block w-full text-sm text-gray-400
+                file:mr-4 file:py-2 file:px-4
+                file:rounded file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100'
+            />
+            {importFile && (
+              <p className='text-sm text-gray-400 mt-2'>
+                File: <span className='text-white'>{importFile.name}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Progress */}
+          {importProgress > 0 && (
+            <div>
+              <div className='flex justify-between items-center mb-2'>
+                <span className='text-sm'>Đang nhập...</span>
+                <span className='text-sm font-medium'>{importProgress}%</span>
+              </div>
+              <Progress
+                percent={importProgress}
+                status={importLoading ? "active" : "success"}
+              />
+            </div>
+          )}
+
+          {/* Results */}
+          {importResults.success > 0 || importResults.failed > 0 ?
+            <div className='bg-gray-700/30 border border-gray-600 rounded-lg p-3 space-y-2'>
+              {importResults.success > 0 && (
+                <div className='text-green-400 text-sm'>
+                  ✓ Thành công: {importResults.success} sản phẩm
+                </div>
+              )}
+              {importResults.failed > 0 && (
+                <div className='text-red-400 text-sm'>
+                  ✗ Thất bại: {importResults.failed} sản phẩm
+                </div>
+              )}
+              {importResults.errors.length > 0 && (
+                <div className='mt-3 max-h-40 overflow-y-auto'>
+                  <p className='text-xs text-gray-400 mb-2'>Chi tiết lỗi:</p>
+                  {importResults.errors.slice(0, 10).map((err, idx) => (
+                    <div key={idx} className='text-xs text-red-300 mb-1'>
+                      {err}
+                    </div>
+                  ))}
+                  {importResults.errors.length > 10 && (
+                    <div className='text-xs text-gray-500'>
+                      ... và {importResults.errors.length - 10} lỗi khác
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          : null}
+
+          {/* Instructions */}
+          <div className='bg-blue-900/20 border border-blue-800 rounded-lg p-3 text-xs text-gray-300'>
+            <p className='font-medium mb-2'>Hướng dẫn định dạng file:</p>
+            <ul className='list-disc list-inside space-y-1'>
+              <li>Cột bắt buộc: Tên sản phẩm, URL</li>
+              <li>
+                Cột tùy chọn: Product ID, Brand, Giá, Chiết khấu, Đánh giá, Đã
+                bán, Trạng thái
+              </li>
+              <li>File size tối đa: 10MB</li>
+              <li>Format hỗ trợ: CSV, XLSX, XLS</li>
+            </ul>
+          </div>
+        </div>
+      </Modal>
 
       {/* Price History Modal */}
       <Modal

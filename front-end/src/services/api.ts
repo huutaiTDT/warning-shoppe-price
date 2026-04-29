@@ -86,6 +86,9 @@ export const shopsAPI = {
     }),
   resetProductStatus: (id: string) =>
     api.post(`/master-data/shops/${id}/reset-product-status`),
+  importProductByExcel: (id: string, data: any) => {
+    return api.post(`/master-data/shops/${id}/import-products`, data);
+  },
 };
 
 // Products APIs

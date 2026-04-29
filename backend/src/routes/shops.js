@@ -361,4 +361,138 @@ router.post("/:id/reset-product-status", async (req, res) => {
   }
 });
 
+// POST: Import products from Excel
+router.post("/:id/import-products", async (req, res) => {
+  try {
+    const { userId } = getAuthContext(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { id } = req.params;
+    const products = req.body;
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ error: "Invalid products data" });
+    }
+
+    const urls = products.map((p) => p["url"] || "").filter((u) => u);
+    if (urls.length > 0) {
+      const validUrlPattern = /^https?:\/\/(www\.)?shopee\.vn\/.+$/i;
+      const invalidUrls = urls.filter((url) => !validUrlPattern.test(url));
+      if (invalidUrls.length > 0) {
+        return res.status(400).json({
+          error: "Invalid product URLs",
+          details: `Các URL sau không hợp lệ: ${invalidUrls.join(", ")}`,
+        });
+      }
+    }
+    // call api get products by urls
+    const fetchProductDetailsByUrls = async (urls) => {
+      try {
+        const response = await fetch(
+          "https://tool-api.gitlabserver.id.vn/common/detail-products",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ urls }),
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error("Error fetching product details by URLs:", error);
+        return [];
+      }
+    };
+    const mapUrlAndProduct = await fetchProductDetailsByUrls(urls);
+
+    const productsToInsert = products
+      .map((p) => {
+        const fetchedProduct = mapUrlAndProduct[p.url];
+        if (!fetchedProduct || !fetchedProduct.product?.id) {
+          return null;
+        }
+
+        const product = fetchedProduct.product;
+        return {
+          shop_id: id,
+          external_id: product.id.toString(),
+          name: product.name || p.name,
+          url: p.url,
+          price: product.price || p.price || 0,
+          price_min: product.priceMin || product.price || 0,
+          price_max: product.priceMax || product.price || 0,
+          rating: product.rating || null,
+          sold: product.sold || 0,
+          image: product.image || null,
+          description: product.description || null,
+          brand: product.brand || p.brand || null,
+          discount: p.discount || null,
+          created_at: new Date().toISOString(),
+        };
+      })
+      .filter((p) => p !== null);
+
+    if (productsToInsert.length === 0) {
+      return res.status(400).json({
+        error: "Không có sản phẩm hợp lệ để import",
+      });
+    }
+
+    // check exist external_id in shop_products
+    const externalIds = productsToInsert.map((p) => p.external_id);
+    const { data: existingProducts, error: existError } = await supabase
+      .from("shop_products")
+      .select("external_id")
+      .in("external_id", externalIds)
+      .eq("shop_id", id);
+
+    if (existError) {
+      return res.status(500).json({
+        error: "Lỗi khi kiểm tra sản phẩm tồn tại",
+        details: existError.message,
+      });
+    }
+    const existingExternalIds = existingProducts.map((p) => p.external_id);
+    const newProductsToInsert = productsToInsert.filter(
+      (p) => !existingExternalIds.includes(p.external_id),
+    );
+
+    if (newProductsToInsert.length === 0) {
+      return res.status(400).json({
+        error: "Tất cả sản phẩm đã tồn tại trong shop",
+      });
+    }
+
+    // Insert into database
+    const { data: inserted, error: insertError } = await supabase
+      .from("shop_products")
+      .insert(newProductsToInsert)
+      .select();
+
+    if (insertError) {
+      return res.status(500).json({
+        error: "Lỗi khi lưu sản phẩm",
+        details: insertError.message,
+      });
+    }
+
+    res.json({
+      success: true,
+      inserted: inserted?.length || 0,
+      total: products.length,
+    });
+  } catch (error) {
+    console.error("Error importing products:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default router;
