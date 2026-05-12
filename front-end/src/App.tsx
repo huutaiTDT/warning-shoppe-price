@@ -186,7 +186,9 @@ export default function App() {
               />
               <Route path='settings' element={<Settings />} />
             </Route>
-            <Route path='/' element={<Dashboard />} />
+            <Route path='/' element={ <PrivateRoute>
+                  <DashboardLayout />
+                </PrivateRoute>} />
             <Route path='*' element={<NotFoundPage />} />
           </Routes>
         </Router>
