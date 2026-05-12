@@ -25,12 +25,14 @@ import masterProductsRoutes from "./routes/products.js";
 import reportsRoutes from "./routes/reports.js";
 import masterDataShopsRoutes from "./routes/shops.js";
 import syncRoutes from "./routes/sync.js";
+import webHookRoutes from "./routes/webhook.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 const allowedOrigins = [
   "*",
+  "https://tool-api.gitlabserver.id.vn",
   "http://localhost:5175",
   "http://localhost:5432",
   "http://localhost:5173",
@@ -91,6 +93,7 @@ app.use("/master-data/products", tenantContextMiddleware, masterProductsRoutes);
 app.use("/master-data/shops", masterDataShopsRoutes);
 app.use("/sync", syncRoutes);
 app.use("/reports", reportsRoutes);
+app.use("/webhook", webHookRoutes);
 
 function printRoutes(app) {
   const logDir = path.join(__dirname, "..", "logs");
