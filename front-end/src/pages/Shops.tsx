@@ -70,24 +70,7 @@ export default function ShopsPage() {
     try {
       const res = await shopsAPI.list(page, limit, search || undefined);
       const list = (res.data.shops || []).map(normalizeShop);
-
-      const countResults = await Promise.all(
-        list.map(async (shop: any) => {
-          try {
-            const countRes = await shopsAPI.getProducts(shop.id, 1, 10);
-            return {
-              ...shop,
-              productCount: Number(
-                countRes?.data?.count ?? shop.productCount ?? 0,
-              ),
-            };
-          } catch (error) {
-            return shop;
-          }
-        }),
-      );
-
-      setShops(countResults);
+      setShops(list);
       setTotal(res.data.total || 0);
     } catch (error) {
       message.error("Lỗi tải dữ liệu");

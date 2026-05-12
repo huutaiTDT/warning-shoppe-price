@@ -68,6 +68,7 @@ export const authAPI = {
 
 // Shops APIs
 export const shopsAPI = {
+  selectBox: () => api.get("/master-data/shops/select-box"),
   list: (page = 1, limit = 10, search?: string) =>
     api.get("/master-data/shops", { params: { page, limit, search } }),
   get: (id: string) => api.get(`/master-data/shops/${id}`),
@@ -188,6 +189,13 @@ export const masterProductsAPI = {
   comparePrice: () => api.get("/master-data/products/compare/price"),
   getWarning: (id: string) =>
     api.get(`/master-data/products/${id}/get-warning`),
+};
+
+export const reportsAPI = {
+  getPriceFluctuations: (params?: any) =>
+    api.get("/reports/price-fluctuations", { params }),
+  getMonthlySummary: (params?: any) =>
+    api.get("/reports/monthly-summary", { params }),
 };
 
 export const userBrandPermissionsAPI = {

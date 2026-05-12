@@ -112,12 +112,23 @@ CREATE TABLE shop_products (
   raw JSONB,
 
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-  UNIQUE (shop_id, external_id)
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_shop_products_shop ON shop_products(shop_id);
 CREATE INDEX idx_shop_products_name ON shop_products(name);
+
+-- ========================
+-- PRICE HISTORY (RUNTIME - CRAWLED DATA)
+-- ========================
+CREATE TABLE price_histories (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  shop_product_id UUID NOT NULL REFERENCES shop_products(id) ON DELETE CASCADE,
+  price NUMERIC(12,2) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_price_histories_shop_product ON price_histories(shop_product_id);
 
 -- ========================
 -- CRAWL HISTORIES (RUNTIME)
@@ -136,22 +147,6 @@ CREATE TABLE crawl_histories (
 
 CREATE INDEX idx_crawl_shop ON crawl_histories(shop_id);
 CREATE INDEX idx_crawl_status ON crawl_histories(status);
-
--- ========================
--- PRICE HISTORIES
--- ========================
-CREATE TABLE price_histories (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  shop_product_id UUID REFERENCES shop_products(id) ON DELETE CASCADE,
-
-  price_min NUMERIC(12,2),
-  price_max NUMERIC(12,2),
-
-  crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_price_product ON price_histories(shop_product_id);
-CREATE INDEX idx_price_time ON price_histories(crawled_at);
 
 -- ========================
 -- OPTIONAL: USER - SHOP MAPPING (MULTI SHOP SUPPORT)

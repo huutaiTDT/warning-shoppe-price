@@ -3,8 +3,8 @@
 import ExcelJS from "exceljs";
 import { Router } from "express";
 import multer from "multer";
+import { db } from "../lib/db.js";
 import { getAuthContext, requireAuthUserId } from "../lib/requestAuth.js";
-import { supabase } from "../lib/supabase.js";
 import {
   canAccessProduct,
   logTenantAccess,
@@ -50,95 +50,112 @@ router.get("/", async (req, res) => {
     const brandId = req.query.brand_id;
     const models = normalizeStringArray(req.query.models);
     const variants = normalizeStringArray(req.query.variants);
+    const isWarning = req.query.is_warning;
 
     // ========================
     // GET BRAND PERMISSION
     // ========================
-    const { data: brandPermissions, error: brandError } = await supabase
-      .from("account_brand_permissions")
-      .select("brand_id")
-      .eq("user_id", userId);
+    const { rows: brandPermissionRows } = await db.query(
+      "SELECT brand_id FROM account_brand_permissions WHERE user_id = $1",
+      [userId],
+    );
 
-    if (brandError) {
-      return res.status(500).json({ error: brandError.message });
+    if (!brandPermissionRows) {
+      return res
+        .status(500)
+        .json({ error: "Failed to fetch brand permissions" });
     }
 
-    const userBrandIds = (brandPermissions || []).map((p) => p.brand_id);
+    const userBrandIds = (brandPermissionRows || []).map((p) => p.brand_id);
     const isAdmin = auth?.type === "ADMIN";
 
     // ========================
     // BASE QUERY
     // ========================
-    let query = supabase
-      .from("products")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false });
+    let query = "SELECT * FROM products";
+    let countQuery = "SELECT count(*) FROM products";
+    const params = [];
+    const countParams = [];
+    let whereClauses = [];
 
     // ========================
     // SEARCH
     // ========================
     if (search) {
-      query = query.ilike("name", `%${search}%`);
+      whereClauses.push("name ILIKE $" + (params.length + 1));
+      params.push(`%${search}%`);
+      countParams.push(`%${search}%`);
     }
 
     // ========================
     // FILTERS (🔥 FIX CHÍNH)
     // ========================
     if (brandId) {
-      query = query.eq("brand_id", brandId);
+      whereClauses.push("brand_id = $" + (params.length + 1));
+      params.push(brandId);
+      countParams.push(brandId);
     }
     if (models.length > 0) {
-      const modelConditions = models
-        .map((m) => `models.cs.{${m}}`) // fallback exact
-        .join(",");
-
-      const modelLikeConditions = models
-        .map((m) => `name.ilike.%${m}%`) // 🔥 fuzzy theo name
-        .join(",");
-
-      query = query.or(`${modelConditions},${modelLikeConditions}`);
+      const modelClauses = models.map(
+        (_, i) => "models @> ARRAY[$" + (params.length + i + 1) + "]",
+      );
+      whereClauses.push(`(${modelClauses.join(" OR ")})`);
+      params.push(...models);
+      countParams.push(...models);
     }
 
     // ========================
     // FUZZY FILTER VARIANTS
     // ========================
     if (variants.length > 0) {
-      const variantConditions = variants
-        .map((v) => `variants.cs.{${v}}`)
-        .join(",");
+      const variantClauses = variants.map(
+        (_, i) => "variants && ARRAY[$" + (params.length + i + 1) + "]",
+      );
+      whereClauses.push(`(${variantClauses.join(" OR ")})`);
+      params.push(...variants);
+      countParams.push(...variants);
+    }
 
-      const variantLikeConditions = variants
-        .map((v) => `name.ilike.%${v}%`)
-        .join(",");
-
-      query = query.or(`${variantConditions},${variantLikeConditions}`);
+    if (isWarning !== undefined && isWarning !== "") {
+      whereClauses.push("is_warning = $" + (params.length + 1));
+      const warningBool = isWarning === 'true';
+      params.push(warningBool);
+      countParams.push(warningBool);
     }
 
     // ========================
     // MULTI-TENANT
     // ========================
     if (!isAdmin) {
-      const ownerFilter = `owner_id.eq.${userId}`;
-
       if (userBrandIds.length > 0) {
-        query = query.or(
-          `${ownerFilter},brand_id.in.(${userBrandIds.join(",")})`,
-        );
+        whereClauses.push(`brand_id IN (${userBrandIds.join(",")})`);
       } else {
-        query = query.eq("owner_id", userId);
+        // If not admin and no brand access, return empty
+        whereClauses.push("1=0");
       }
+    }
+
+    if (whereClauses.length > 0) {
+      query += " WHERE " + whereClauses.join(" AND ");
+      countQuery += " WHERE " + whereClauses.join(" AND ");
     }
 
     // ========================
     // EXECUTE
     // ========================
-    const { data, error, count } = await query.range(
-      offset,
-      offset + limit - 1,
-    );
+    query +=
+      " ORDER BY is_warning DESC, created_at DESC LIMIT $" +
+      (params.length + 1) +
+      " OFFSET $" +
+      (params.length + 2);
+    params.push(limit, offset);
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    const { rows: data } = await db.query(query, params);
+    const { rows: countRows } = await db.query(countQuery, countParams);
+    const count = countRows[0].count;
+
+    if (!data) {
+      return res.status(500).json({ error: "Failed to list products" });
     }
 
     await logTenantAccess(userId, "READ", "PRODUCT", null, {
@@ -174,13 +191,10 @@ router.get("/:id", async (req, res) => {
     const auth = getAuthContext(req);
     const { id } = req.params;
 
-    const { data: product, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("id", id)
-      .single();
+    const { rows } = await db.query("SELECT * FROM products WHERE id = $1", [id]);
+    const product = rows[0];
 
-    if (error || !product) {
+    if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
 
@@ -220,35 +234,27 @@ router.post("/", async (req, res) => {
 
     // Validate brand_id if provided
     if (brand_id) {
-      const { data: brand, error: brandError } = await supabase
-        .from("brands")
-        .select("id")
-        .eq("id", brand_id)
-        .single();
+      const { rows } = await db.query("SELECT id FROM brands WHERE id = $1", [brand_id]);
+      const brand = rows[0];
 
-      if (brandError || !brand) {
+      if (!brand) {
         return res.status(400).json({ error: "Invalid brand_id" });
       }
     }
 
-    const { data, error } = await supabase
-      .from("products")
-      .insert({
-        owner_id: userId,
-        name,
-        brand_id,
-        models: normalizeStringArray(req.body?.models),
-        variants: normalizeStringArray(req.body?.variants),
-        listed_price: toNumber(req.body?.listed_price, 0),
-        is_active,
-        is_warning: false,
-        created_at: new Date(),
-      })
-      .select("*")
-      .single();
+    const models = normalizeStringArray(req.body?.models);
+    const variants = normalizeStringArray(req.body?.variants);
+    const listed_price = toNumber(req.body?.listed_price, 0);
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    const { rows } = await db.query(
+      `INSERT INTO products (owner_id, name, brand_id, models, variants, listed_price, is_active, is_warning, created_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING *`,
+      [userId, name, brand_id, models, variants, listed_price, is_active, false]
+    );
+    const data = rows[0];
+
+    if (!data) {
+      return res.status(500).json({ error: "Failed to create product" });
     }
 
     await logTenantAccess(userId, "CREATE", "PRODUCT", data.id, {
@@ -274,13 +280,10 @@ router.put("/:id", async (req, res) => {
     const { id } = req.params;
 
     // Verify access
-    const { data: product, error: getError } = await supabase
-      .from("products")
-      .select("*")
-      .eq("id", id)
-      .single();
+    const { rows: prodRows } = await db.query("SELECT * FROM products WHERE id = $1", [id]);
+    const product = prodRows[0];
 
-    if (getError || !product) {
+    if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
 
@@ -293,13 +296,10 @@ router.put("/:id", async (req, res) => {
 
     // Validate brand_id if provided
     if (req.body?.brand_id) {
-      const { data: brand, error: brandError } = await supabase
-        .from("brands")
-        .select("id")
-        .eq("id", req.body.brand_id)
-        .single();
+      const { rows } = await db.query("SELECT id FROM brands WHERE id = $1", [req.body.brand_id]);
+      const brand = rows[0];
 
-      if (brandError || !brand) {
+      if (!brand) {
         return res.status(400).json({ error: "Invalid brand_id" });
       }
     }
@@ -326,15 +326,22 @@ router.put("/:id", async (req, res) => {
       : {}),
     };
 
-    const { data, error } = await supabase
-      .from("products")
-      .update(updates)
-      .eq("id", id)
-      .select("*")
-      .single();
+    const updateKeys = Object.keys(updates);
+    if (updateKeys.length === 0) {
+      return res.json(product);
+    }
+    
+    const setClauses = updateKeys.map((key, idx) => `${key} = $${idx + 1}`);
+    const values = updateKeys.map(key => updates[key]);
+    
+    const { rows } = await db.query(
+      `UPDATE products SET ${setClauses.join(", ")} WHERE id = $${values.length + 1} RETURNING *`,
+      [...values, id]
+    );
+    const data = rows[0];
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    if (!data) {
+      return res.status(500).json({ error: "Failed to update product" });
     }
 
     await logTenantAccess(userId, "UPDATE", "PRODUCT", id, updates);
@@ -355,13 +362,10 @@ router.delete("/:id", async (req, res) => {
     const { id } = req.params;
 
     // Verify access
-    const { data: product, error: getError } = await supabase
-      .from("products")
-      .select("*")
-      .eq("id", id)
-      .single();
+    const { rows } = await db.query("SELECT * FROM products WHERE id = $1", [id]);
+    const product = rows[0];
 
-    if (getError || !product) {
+    if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
 
@@ -372,11 +376,7 @@ router.delete("/:id", async (req, res) => {
         .json({ error: "Forbidden - only owner can delete" });
     }
 
-    const { error } = await supabase.from("products").delete().eq("id", id);
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    await db.query("DELETE FROM products WHERE id = $1", [id]);
 
     await logTenantAccess(userId, "DELETE", "PRODUCT", id);
 
@@ -427,51 +427,39 @@ router.post("/import", upload.single("file"), async (req, res) => {
     }
     // add brand if it not exist
     for (const brandName of brands) {
-      const { data: existingBrand } = await supabase
-        .from("brands")
-        .select("id")
-        .eq("name", brandName)
-        .single();
+      const { rows: existingRows } = await db.query("SELECT id FROM brands WHERE name = $1", [brandName]);
+      const existingBrand = existingRows[0];
 
       if (!existingBrand) {
-        const { data: newBrand, error: brandError } = await supabase
-          .from("brands")
-          .insert({
-            name: brandName,
-            code: brandName.toLowerCase(),
-          })
-          .select("*")
-          .single();
-
-        if (brandError) {
-          console.error(`Error inserting brand ${brandName}:`, brandError);
-          continue;
-        }
-        // add account_brand_permissions for new brand
-        const { error: permError } = await supabase
-          .from("account_brand_permissions")
-          .insert({
-            user_id: userId,
-            brand_id: newBrand.id,
-          });
-
-        if (permError) {
-          console.error(
-            `Error inserting brand permission for ${brandName}:`,
-            permError,
+        try {
+          const { rows: newRows } = await db.query(
+            "INSERT INTO brands (name, code) VALUES ($1, $2) RETURNING *",
+            [brandName, brandName.toLowerCase()]
           );
-        }
+          const newBrand = newRows[0];
 
-        console.log(`Inserted new brand: ${brandName} with id ${newBrand.id}`);
+          // add account_brand_permissions for new brand
+          await db.query(
+            "INSERT INTO account_brand_permissions (user_id, brand_id) VALUES ($1, $2)",
+            [userId, newBrand.id]
+          );
+
+          console.log(`Inserted new brand: ${brandName} with id ${newBrand.id}`);
+        } catch (err) {
+          console.error(`Error inserting brand ${brandName}:`, err);
+        }
       }
     }
-    const brandFound = await supabase
-      .from("brands")
-      .select("id, name")
-      .in("name", brands);
+    
+    let brandFoundData = [];
+    if (brands.length > 0) {
+      const placeholders = brands.map((_, idx) => `$${idx + 1}`).join(",");
+      const { rows } = await db.query(`SELECT id, name FROM brands WHERE name IN (${placeholders})`, brands);
+      brandFoundData = rows;
+    }
 
     const brandMap = {};
-    (brandFound.data || []).forEach((b) => {
+    (brandFoundData || []).forEach((b) => {
       brandMap[b.name] = b.id;
     });
 
@@ -505,23 +493,15 @@ router.post("/import", upload.single("file"), async (req, res) => {
 
         const brandId = brandMap[brand] || null;
         // Insert product
-        const { data: insertedProduct, error: insertError } = await supabase
-          .from("products")
-          .insert({
-            owner_id: userId,
-            name,
-            brand_id: brandId,
-            models: [],
-            variants: variants,
-            listed_price: listedPrice,
-            is_active: true,
-            is_warning: false,
-            created_at: new Date(),
-          })
-          .select("*")
-          .single();
-
-        if (insertError) {
+        let insertedProduct;
+        try {
+          const { rows } = await db.query(
+            `INSERT INTO products (owner_id, name, brand_id, models, variants, listed_price, is_active, is_warning, created_at) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING *`,
+            [userId, name, brandId, [], variants, listedPrice, true, false]
+          );
+          insertedProduct = rows[0];
+        } catch (insertError) {
           errors.push(`Hàng ${i}: ${insertError.message}`);
           continue;
         }
@@ -565,15 +545,14 @@ router.get("/export/xlsx", async (req, res) => {
     const { userId } = requireAuthUserId(req, res);
     if (!userId) return;
 
-    const { data, error } = await supabase
-      .from("products")
-      .select("name, brand, models, variants, listed_price, description")
-      .eq("owner_id", userId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    const { rows: data } = await db.query(
+      `SELECT p.name, b.name as brand, p.models, p.variants, p.listed_price, p.description 
+       FROM products p 
+       LEFT JOIN brands b ON p.brand_id = b.id 
+       WHERE p.owner_id = $1 
+       ORDER BY p.created_at DESC`,
+      [userId]
+    );
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("MasterProducts");
@@ -618,40 +597,49 @@ router.get("/:id/get-warning", async (req, res) => {
 
     const { id } = req.params;
     // Verify product exists and access
-    const { data: product, error: getError } = await supabase
-      .from("products")
-      .select("*")
-      .eq("id", id)
-      .single();
+    const { rows: prodRows } = await db.query("SELECT * FROM products WHERE id = $1", [id]);
+    const product = prodRows[0];
 
-    if (getError || !product) {
+    if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
     const name = product.name || "";
     const price = product.listed_price || 0;
     const variants = product?.variants;
     const warnings = [];
-    const query = supabase
-      .from("shop_products")
-      .select("id, name, price_min, price, price_max, shop_id")
-      .or(`price_min.lt.${price},price.lt.${price},price_max.lt.${price}`);
-    for (const row of variants || []) {
-      const variantString = row.toString().trim()?.toLowerCase();
-      if (variantString) {
-        query.or(`name.ilike.%${variantString}%`);
+    
+    let shopProducts = [];
+    try {
+      const conditions = [`(price_min < $1 OR price < $1 OR price_max < $1)`];
+      const conditionsOr = [];
+      const params = [price];
+      
+      for (const row of variants || []) {
+        const variantString = row.toString().trim()?.toLowerCase();
+        if (variantString) {
+          conditionsOr.push(`name ILIKE '%${variantString}%'`);
+        }
       }
+
+      
+      const finalQuery = `SELECT id, external_link, name, url, price_min, price, price_max, shop_id, rating, sold 
+         FROM shop_products 
+         WHERE (${conditions.join(" OR ")}) AND (${conditionsOr.join(" OR ")})` 
+      const { rows } = await db.query(
+        finalQuery,
+        params
+      );
+
+      shopProducts = rows;
+    } catch (shopProductError) {
+      return res.status(500).json({ error: shopProductError.message });
     }
-    const { data: shopProducts, error: shopProductError } = await query;
 
     for (const sp of shopProducts || []) {
       let shopInfo = null;
       try {
-        const { data: shop } = await supabase
-          .from("shops")
-          .select("id, name, url")
-          .eq("id", sp.shop_id)
-          .single();
-        shopInfo = shop;
+        const { rows: shopRows } = await db.query("SELECT id, name, url FROM shops WHERE id = $1", [sp.shop_id]);
+        shopInfo = shopRows[0];
       } catch (e) {
         console.error("Error fetching shop info:", e);
       }
@@ -659,16 +647,17 @@ router.get("/:id/get-warning", async (req, res) => {
       warnings.push({
         shop_product_id: sp.id,
         shop_product_name: sp.name,
+        shop_product_url: sp.url,
+        external_link: sp.external_link,
         price_min: sp.price_min,
         price: sp.price,
         price_max: sp.price_max,
+        rating: sp.rating,
+        sold: sp.sold,
         listed_price: price,
         shop_id: sp.shop_id,
         shopInfo,
       });
-    }
-    if (shopProductError) {
-      return res.status(500).json({ error: shopProductError.message });
     }
     return res.status(200).json({ warnings });
   } catch (error) {

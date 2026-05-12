@@ -19,13 +19,15 @@ import CrawlHistory from "@/pages/CrawlHistory";
 import Dashboard from "@/pages/Dashboard";
 import DashboardLayout from "@/pages/Layout";
 import Login from "@/pages/Login";
-import MasterProductsPage from "@/pages/Product";
-import ProductDetail from "@/pages/ProductDetail";
+import MasterProductsPage from "@/pages/MasterProductsPage";
+import NotFoundPage from "@/pages/not-found";
+import ReportsPage from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import ShopForm from "@/pages/ShopForm";
 import Shops from "@/pages/Shops";
-import ProductForm from "./pages/ProductForm";
+import MasterProductDetail from "./pages/MasterProductDetail";
 import ShopDetail from "./pages/ShopDetail";
+import ShopProductDetail from "./pages/ShopProductDetail";
 // Private Route Component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
@@ -157,16 +159,23 @@ export default function App() {
                 </PrivateRoute>
               }>
               <Route index element={<Dashboard />} />
+              <Route path='brands' element={<BrandManager />} />
               <Route path='shops' element={<Shops />} />
               <Route path='shops/new' element={<ShopForm />} />
               <Route path='shops/:id' element={<ShopForm />} />
               <Route path='shops/detail/:id' element={<ShopDetail />} />
-              <Route path='products/new' element={<ProductForm />} />
-              <Route path='products/:id' element={<ProductDetail />} />
-              <Route path='products/:id/edit' element={<ProductForm />} />
+              <Route path='reports' element={<ReportsPage />} />
+              <Route path='master-products/:id' element={<MasterProductDetail />} />
+              <Route path='master-products' element={<MasterProductsPage />} />
+              <Route path='shop-product/:id' element={<ShopProductDetail />} />
+              <Route path='products' element={<MasterProductsPage />} />
+              {/* <Route path='products/new' element={<MasterProductFormPage />} /> */}
+              {/* <Route
+                path='products/:id/edit'
+                element={<MasterProductFormPage />}
+              /> */}
               <Route path='crawl-history' element={<CrawlHistory />} />
               <Route path='brands' element={<BrandManager />} />
-              <Route path='master-products' element={<MasterProductsPage />} />
               <Route
                 path='admin/accounts'
                 element={
@@ -177,9 +186,7 @@ export default function App() {
               />
               <Route path='settings' element={<Settings />} />
             </Route>
-
-            <Route path='/' element={<Navigate to='/dashboard' />} />
-            <Route path='*' element={<Navigate to='/dashboard' />} />
+            <Route path='*' element={<NotFoundPage />} />
           </Routes>
         </Router>
       </AuthProvider>

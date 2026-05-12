@@ -1,8 +1,8 @@
 /** @format */
 
 import { Router } from "express";
+import { db } from "../lib/db.js";
 import { requireAuth } from "../lib/requestAuth.js";
-import { supabase } from "../lib/supabase.js";
 import { roleGuard } from "../middleware/roleGuard.js";
 import { logTenantAccess } from "../middleware/tenantContext.js";
 
@@ -23,14 +23,13 @@ router.post("/", roleGuard(["ADMIN"]), async (req, res) => {
         .json({ error: "user_id and brand_id are required" });
     }
 
-    // Verify user exists and is not ADMIN
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("id, type")
-      .eq("id", user_id)
-      .single();
+    const { rows: userRows } = await db.query(
+      "SELECT id, type FROM users WHERE id = $1",
+      [user_id],
+    );
+    const user = userRows[0];
 
-    if (userError || !user) {
+    if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
@@ -41,35 +40,24 @@ router.post("/", roleGuard(["ADMIN"]), async (req, res) => {
         .json({ error: "Brand permissions can only be assigned to STAFF" });
     }
 
-    // Verify brand exists
-    const { data: brand, error: brandError } = await supabase
-      .from("brands")
-      .select("id, name")
-      .eq("id", brand_id)
-      .single();
+    const { rows: brandRows } = await db.query(
+      "SELECT id, name FROM brands WHERE id = $1",
+      [brand_id],
+    );
+    const brand = brandRows[0];
 
-    if (brandError || !brand) {
+    if (!brand) {
       return res.status(404).json({ error: "Brand not found" });
     }
 
-    // Create permission
-    const { data: permission, error: permError } = await supabase
-      .from("account_brand_permissions")
-      .insert({
-        user_id,
-        brand_id,
-      })
-      .select()
-      .single();
+    const { rows: permissionRows } = await db.query(
+      "INSERT INTO account_brand_permissions (user_id, brand_id) VALUES ($1, $2) RETURNING *",
+      [user_id, brand_id],
+    );
+    const permission = permissionRows[0];
 
-    if (permError) {
-      // Check if it's a unique constraint violation
-      if (permError.code === "23505") {
-        return res
-          .status(400)
-          .json({ error: "User already has permission for this brand" });
-      }
-      return res.status(400).json({ error: permError.message });
+    if (!permission) {
+      return res.status(500).json({ error: "Failed to assign brand" });
     }
 
     await logTenantAccess(
@@ -99,14 +87,7 @@ router.delete("/:id", roleGuard(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
-      .from("account_brand_permissions")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
+    await db.query("DELETE FROM account_brand_permissions WHERE id = $1", [id]);
 
     await logTenantAccess(
       req.tenantContext?.userId,
@@ -130,13 +111,18 @@ router.get("/account/:user_id", roleGuard(["ADMIN"]), async (req, res) => {
   try {
     const { user_id } = req.params;
 
-    const { data: permissions, error } = await supabase
-      .from("account_brand_permissions")
-      .select("id, brand_id, brands(id, name, code)")
-      .eq("user_id", user_id);
+    const { rows: permissions } = await db.query(
+      `
+      SELECT abp.id, abp.brand_id, b.id as "brandId", b.name, b.code
+      FROM account_brand_permissions abp
+      JOIN brands b ON abp.brand_id = b.id
+      WHERE abp.user_id = $1
+    `,
+      [user_id],
+    );
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    if (!permissions) {
+      return res.status(500).json({ error: "Failed to fetch permissions" });
     }
 
     res.json({
@@ -161,37 +147,37 @@ router.get("/my-brands", async (req, res) => {
     const auth = requireAuth(req, res);
     if (!auth) return;
 
-    // Check if user is ADMIN - admins can access all brands
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("type")
-      .eq("id", auth.userId)
-      .single();
+    const { rows: userRows } = await db.query(
+      "SELECT type FROM users WHERE id = $1",
+      [auth.userId],
+    );
+    const user = userRows[0];
 
-    if (userError) {
-      return res.status(500).json({ error: "Failed to check user type" });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
     }
 
-    let query = supabase.from("brands").select("id, name, code");
+    let query;
+    const params = [];
 
     if (user.type === "STAFF") {
-      // STAFF: only their assigned brands
-      query = query.innerJoin("account_brand_permissions", (join) =>
-        join
-          .on("brands.id", "account_brand_permissions.brand_id")
-          .eq("account_brand_permissions.user_id", auth.userId),
-      );
+      query = `
+        SELECT b.id, b.name, b.code 
+        FROM brands b
+        JOIN account_brand_permissions abp ON b.id = abp.brand_id
+        WHERE abp.user_id = $1
+        ORDER BY b.name ASC
+      `;
+      params.push(auth.userId);
     } else {
-      // ADMIN: all active brands
-      query = query.eq("is_active", true);
+      // ADMIN gets all brands
+      query = `SELECT id, name, code FROM brands ORDER BY name ASC`;
     }
 
-    const { data: brands, error } = await query.order("name", {
-      ascending: true,
-    });
+    const { rows: brands } = await db.query(query, params);
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    if (!brands) {
+      return res.status(500).json({ error: "Failed to fetch brands" });
     }
 
     res.json(brands || []);

@@ -4,8 +4,8 @@ import axios from "axios";
 import ExcelJS from "exceljs";
 import { Router } from "express";
 import multer from "multer";
+import { db } from "../lib/db.js";
 import { requireAuthUserId } from "../lib/requestAuth.js";
-import { supabase } from "../lib/supabase.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -15,7 +15,7 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const normalizeProduct = (product) => {
+export const normalizeProduct = (product) => {
   const fallbackPrice = toNumber(product.price, 0);
   const priceMin = toNumber(product.price_min, fallbackPrice);
   const priceMax = toNumber(product.price_max, fallbackPrice);
@@ -41,9 +41,9 @@ const normalizeProduct = (product) => {
     isUnderOriginal,
     isAboveOriginal,
     shopId: product.shop_id,
-    shopName: product.shops?.name || null,
-    shopCode: product.shops?.code || null,
-    shopPlatform: product.shops?.platform || null,
+    shopName: product.shopName || product.shops?.name || null,
+    shopCode: product.shopCode || product.shops?.code || null,
+    shopPlatform: product.shopPlatform || product.shops?.platform || null,
   };
 };
 
@@ -128,37 +128,42 @@ router.get("/under-original-count", async (req, res) => {
     const shopId = (req.query.shop || "").toString();
     const brand = (req.query.brand || "").toString().trim();
 
-    const filterParams = {
-      search,
-      minPrice,
-      maxPrice,
-      minRating,
-      shopId,
-      brand,
-    };
+    let query = `
+      SELECT sp.id, sp.price, sp.price_min, sp.price_max, sp.original_price
+      FROM shop_products sp
+      JOIN shops s ON sp.shop_id = s.id
+      WHERE s.owner_id = $1 AND sp.original_price > 0 AND ((sp.price_min + sp.price_max) / 2) < sp.original_price
+    `;
+    const params = [userId];
 
-    const baseQuery = supabase
-      .from("shop_products")
-      .select(
-        "id, price, price_min, price_max, original_price, shops!shop_id(id, owner_id)",
-      );
-
-    const { data: products, error } = await applyListFilters(
-      baseQuery,
-      filterParams,
-    );
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    if (search) {
+      query += ` AND sp.name ILIKE $${params.length + 1}`;
+      params.push(`%${search}%`);
+    }
+    if (minPrice !== null) {
+      query += ` AND sp.price_min >= $${params.length + 1}`;
+      params.push(minPrice);
+    }
+    if (maxPrice !== null) {
+      query += ` AND sp.price_max <= $${params.length + 1}`;
+      params.push(maxPrice);
+    }
+    if (minRating !== null) {
+      query += ` AND sp.rating >= $${params.length + 1}`;
+      params.push(minRating);
+    }
+    if (shopId) {
+      query += ` AND sp.shop_id = $${params.length + 1}`;
+      params.push(shopId);
+    }
+    if (brand) {
+      query += ` AND sp.brand ILIKE $${params.length + 1}`;
+      params.push(`%${brand}%`);
     }
 
-    const count = (products || []).reduce((acc, product) => {
-      if (product.shops?.owner_id !== userId) return acc;
-      const normalized = normalizeProduct(product);
-      return normalized.isUnderOriginal ? acc + 1 : acc;
-    }, 0);
+    const { rows } = await db.query(query, params);
 
-    return res.json({ count });
+    return res.json({ count: rows.length });
   } catch (error) {
     console.error("Error counting products under original price:", error);
     return res.status(500).json({ error: "Internal server error" });
@@ -171,15 +176,15 @@ router.get("/export", async (req, res) => {
     const { userId } = requireAuthUserId(req, res);
     if (!userId) return;
 
-    const { data: products, error } = await supabase
-      .from("shop_products")
-      .select(
-        "id, name, models, variants, price_min, price_max, original_price, shops!shop_id(owner_id)",
-      );
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    const { rows: products } = await db.query(
+      `
+      SELECT p.id, p.name, p.models, p.variants, p.price_min, p.price_max, p.original_price
+      FROM shop_products p
+      JOIN shops s ON p.shop_id = s.id
+      WHERE s.owner_id = $1
+    `,
+      [userId],
+    );
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Products");
@@ -249,20 +254,19 @@ router.post("/import", upload.single("file"), async (req, res) => {
     });
 
     for (const item of updates) {
-      const existing = await supabase
-        .from("shop_products")
-        .select("id, shops!shop_id(owner_id)")
-        .eq("id", item.id)
-        .maybeSingle();
+      const { rows: existingRows } = await db.query(
+        `SELECT sp.id FROM shop_products sp JOIN shops s ON sp.shop_id = s.id WHERE sp.id = $1 AND s.owner_id = $2`,
+        [item.id, userId],
+      );
 
-      if (existing.data?.shops?.owner_id !== userId) {
+      if (existingRows.length === 0) {
         continue;
       }
 
-      await supabase
-        .from("shop_products")
-        .update({ original_price: item.original_price })
-        .eq("id", item.id);
+      await db.query(
+        "UPDATE shop_products SET original_price = $1 WHERE id = $2",
+        [item.original_price, item.id],
+      );
     }
 
     res.json({ success: true, updated: updates.length });
@@ -342,141 +346,6 @@ router.post("/sync-from-link", async (req, res) => {
   }
 });
 
-// GET: List products with filters
-router.get("/", async (req, res) => {
-  try {
-    const { userId } = requireAuthUserId(req, res);
-    if (!userId) return;
-
-    const page = Math.max(parseInt(req.query.page) || 1, 1);
-    const search = (req.query.search || "").toString().trim();
-    const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : null;
-    const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : null;
-    const minRating =
-      req.query.minRating ? parseFloat(req.query.minRating) : null;
-    const shopId = (req.query.shop || "").toString();
-    const brand = (req.query.brand || "").toString().trim();
-    const aboveOriginal = req.query.aboveOriginal == "true";
-    const underOriginal = req.query.underOriginal == "true";
-    const limit = Math.min(Math.max(parseInt(req.query.limit) || 25, 1), 200);
-    const offset = (page - 1) * limit;
-
-    const filterParams = {
-      search,
-      minPrice,
-      maxPrice,
-      minRating,
-      shopId,
-      brand,
-    };
-
-    if (aboveOriginal || underOriginal) {
-      const baseQuery = supabase
-        .from("shop_products")
-        .select("*, shops!shop_id(id, name, code, platform)")
-        .order("created_at", { ascending: false });
-
-      const { data: allProducts, error } = await applyListFilters(
-        baseQuery,
-        filterParams,
-      );
-
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
-
-      const filteredProducts = (allProducts || [])
-        .map(normalizeProduct)
-        .filter((product) => {
-          if (product.shops?.owner_id !== userId) return false;
-          if (!matchSearch(product, search)) return false;
-          if (aboveOriginal) return product.isAboveOriginal;
-          return product.isUnderOriginal;
-        });
-
-      const pagedProducts = filteredProducts.slice(offset, offset + limit);
-
-      return res.json({
-        products: pagedProducts,
-        total: filteredProducts.length,
-        page,
-        limit,
-        pages: Math.ceil(filteredProducts.length / limit),
-      });
-    }
-
-    if (search) {
-      const fullQuery = supabase
-        .from("shop_products")
-        .select("*, shops!shop_id(id, name, code, platform, owner_id)")
-        .order("created_at", { ascending: false });
-
-      const { data: allProducts, error } = await applyListFilters(
-        fullQuery,
-        filterParams,
-      );
-
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
-
-      const filteredProducts = (allProducts || [])
-        .map(normalizeProduct)
-        .filter(
-          (product) =>
-            product.shops?.owner_id === userId && matchSearch(product, search),
-        );
-
-      const pagedProducts = filteredProducts.slice(offset, offset + limit);
-
-      return res.json({
-        products: pagedProducts,
-        total: filteredProducts.length,
-        page,
-        limit,
-        pages: Math.ceil(filteredProducts.length / limit),
-      });
-    }
-
-    const query = supabase
-      .from("shop_products")
-      .select("*, shops!shop_id(id, name, code, platform, owner_id)", {
-        count: "exact",
-      });
-
-    const sortedQuery = applyListFilters(query, filterParams).order(
-      "created_at",
-      {
-        ascending: false,
-      },
-    );
-    const {
-      data: products,
-      error,
-      count,
-    } = await sortedQuery.range(offset, offset + limit - 1);
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-
-    const normalizedProducts = (products || [])
-      .map(normalizeProduct)
-      .filter((product) => product.shops?.owner_id === userId);
-
-    res.json({
-      products: normalizedProducts,
-      total: normalizedProducts.length,
-      page,
-      limit,
-      pages: Math.ceil(normalizedProducts.length / limit),
-    });
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
 // GET: Product detail
 router.get("/:id", async (req, res) => {
   try {
@@ -485,14 +354,21 @@ router.get("/:id", async (req, res) => {
 
     const { id } = req.params;
 
-    const { data: product, error } = await supabase
-      .from("shop_products")
-      .select("*, shops!shop_id(id, name, code, platform, owner_id)")
-      .eq("id", id)
-      .single();
+    const { rows } = await db.query(
+      `
+      SELECT p.*, s.name as "shopName", s.code as "shopCode", s.platform as "shopPlatform"
+      FROM shop_products p
+      JOIN shops s ON p.shop_id = s.id
+      WHERE p.id = $1 AND s.owner_id = $2
+    `,
+      [id, userId],
+    );
+    const product = rows[0];
 
-    if (error || product?.shops?.owner_id !== userId) {
-      return res.status(404).json({ error: error.message });
+    if (!product) {
+      return res
+        .status(404)
+        .json({ error: "Product not found or not authorized" });
     }
 
     res.json(normalizeProduct(product));
@@ -511,28 +387,10 @@ router.get("/:id/price-history", async (req, res) => {
     const { id } = req.params;
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 100, 1), 500);
 
-    const { data: history, error } = await supabase
-      .from("price_histories")
-      .select("id, shop_product_id, price_min, price_max, crawled_at")
-      .eq("shop_product_id", id)
-      .order("crawled_at", { ascending: false })
-      .limit(limit);
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-
-    const { data: product } = await supabase
-      .from("shop_products")
-      .select("id, shops!shop_id(owner_id)")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (!product || product.shops?.owner_id !== userId) {
-      return res
-        .status(403)
-        .json({ error: "Không có quyền truy cập sản phẩm" });
-    }
+    const { rows: history } = await db.query(
+      "SELECT id, shop_product_id, price_min, price_max, crawled_at FROM price_histories WHERE shop_product_id = $1 ORDER BY crawled_at DESC LIMIT $2",
+      [id, limit],
+    );
 
     const items = (history || []).map((item) => {
       const min = toNumber(item.price_min, 0);
@@ -594,13 +452,12 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Shop ID required" });
     }
 
-    const { data: shop } = await supabase
-      .from("shops")
-      .select("id, owner_id")
-      .eq("id", shop_id)
-      .maybeSingle();
+    const { rows: shopRows } = await db.query(
+      "SELECT id FROM shops WHERE id = $1 AND owner_id = $2",
+      [shop_id, userId],
+    );
 
-    if (!shop || shop.owner_id !== userId) {
+    if (shopRows.length === 0) {
       return res
         .status(403)
         .json({ error: "Không có quyền thêm sản phẩm vào shop này" });
@@ -612,6 +469,35 @@ router.post("/", async (req, res) => {
         .status(403)
         .json({ error: "Không có quyền với thương hiệu này" });
     }
+
+    const insertQuery = `
+      INSERT INTO shop_products(name, price_min, price_max, price, rating, sold, image, external_link, original_price, description, external_id, shop_id, brand, models, variants, created_by)
+      VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      RETURNING *
+    `;
+    const insertParams = [
+      name,
+      toNumber(priceMin, 0),
+      toNumber(priceMax, 0),
+      toNumber(price, 0),
+      toNumber(rating, 0),
+      toNumber(sold, 0),
+      image,
+      external_link,
+      toNumber(original_price, 0),
+      description,
+      external_id,
+      shop_id,
+      brand,
+      normalizeModels(models),
+      normalizeVariants(variants),
+      userId,
+    ];
+
+    const { rows: newProductRows } = await db.query(insertQuery, insertParams);
+    const newProduct = newProductRows[0];
+
+    res.status(201).json(normalizeProduct(newProduct));
   } catch (error) {
     console.error("Error creating product:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -643,26 +529,24 @@ router.put("/:id", async (req, res) => {
       variants,
     } = req.body;
 
-    const { data: existing } = await supabase
-      .from("shop_products")
-      .select("id, shop_id, brand, shops!shop_id(owner_id)")
-      .eq("id", id)
-      .maybeSingle();
+    const { rows: existingRows } = await db.query(
+      "SELECT sp.id, sp.shop_id, sp.brand FROM shop_products sp JOIN shops s ON sp.shop_id = s.id WHERE sp.id = $1 AND s.owner_id = $2",
+      [id, userId],
+    );
+    const existing = existingRows[0];
 
-    if (!existing || existing.shops?.owner_id !== userId) {
+    if (!existing) {
       return res
         .status(403)
         .json({ error: "Không có quyền cập nhật sản phẩm này" });
     }
 
     if (shop_id !== undefined) {
-      const { data: nextShop } = await supabase
-        .from("shops")
-        .select("id, owner_id")
-        .eq("id", shop_id)
-        .maybeSingle();
-
-      if (!nextShop || nextShop.owner_id !== userId) {
+      const { rows: nextShopRows } = await db.query(
+        "SELECT id FROM shops WHERE id = $1 AND owner_id = $2",
+        [shop_id, userId],
+      );
+      if (nextShopRows.length === 0) {
         return res
           .status(403)
           .json({ error: "Không có quyền chuyển sản phẩm sang shop này" });
@@ -700,25 +584,32 @@ router.put("/:id", async (req, res) => {
       updates.price = (updates.price_min + updates.price_max) / 2;
     }
 
-    const { data: product, error } = await supabase
-      .from("shop_products")
-      .update(updates)
-      .eq("id", id)
-      .select("*, shops!shop_id(id, name, code, platform)")
-      .single();
+    const updateEntries = Object.entries(updates);
+    const setClause = updateEntries
+      .map(([key, value], i) => `${key} = $${i + 1}`)
+      .join(", ");
+    const updateParams = updateEntries.map(([, value]) => value);
+    updateParams.push(id);
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    const { rows: productRows } = await db.query(
+      `UPDATE shop_products SET ${setClause} WHERE id = $${updateParams.length} RETURNING *`,
+      updateParams,
+    );
+    const product = productRows[0];
 
     if (external_id !== undefined && shop_id) {
-      await supabase
-        .from("shops")
-        .update({ is_sys_product_by_link: true })
-        .eq("id", shop_id);
+      await db.query(
+        "UPDATE shops SET is_sys_product_by_link = true WHERE id = $1",
+        [shop_id],
+      );
     }
 
-    res.json(normalizeProduct(product));
+    const { rows: finalProductRows } = await db.query(
+      `SELECT p.*, s.name as "shopName", s.code as "shopCode", s.platform as "shopPlatform" FROM shop_products p JOIN shops s ON p.shop_id = s.id WHERE p.id = $1`,
+      [product.id],
+    );
+
+    res.json(normalizeProduct(finalProductRows[0]));
   } catch (error) {
     console.error("Error updating product:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -733,24 +624,16 @@ router.delete("/:id", async (req, res) => {
 
     const { id } = req.params;
 
-    const { data: existing } = await supabase
-      .from("shop_products")
-      .select("id, shops!shop_id(owner_id)")
-      .eq("id", id)
-      .maybeSingle();
+    const { rows: existingRows } = await db.query(
+      "SELECT sp.id FROM shop_products sp JOIN shops s ON sp.shop_id = s.id WHERE sp.id = $1 AND s.owner_id = $2",
+      [id, userId],
+    );
 
-    if (!existing || existing.shops?.owner_id !== userId) {
+    if (existingRows.length === 0) {
       return res.status(403).json({ error: "Không có quyền xóa sản phẩm này" });
     }
 
-    const { error } = await supabase
-      .from("shop_products")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    await db.query("DELETE FROM shop_products WHERE id = $1", [id]);
 
     res.json({ success: true });
   } catch (error) {

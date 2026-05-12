@@ -594,6 +594,9 @@ export default function ShopDetail() {
           <div className='flex-1 overflow-auto'>
             <Table
               showHeader={false}
+              onRow={(record: Product) => ({
+                onClick: () => navigate(`/dashboard/shop-product/${record.id}`),
+              })}
               columns={columns}
               dataSource={products}
               loading={productsLoading}

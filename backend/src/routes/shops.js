@@ -1,9 +1,10 @@
 /** @format */
 
+import ExcelJS from "exceljs";
 import { Router } from "express";
+import { db } from "../lib/db.js";
 import { getAuthContext, requireAuthUserId } from "../lib/requestAuth.js";
-import { supabase } from "../lib/supabase.js";
-
+import { normalizeProduct } from "./products-shop.js";
 const router = Router();
 
 // Helper: Generate shop code from URL
@@ -26,6 +27,54 @@ const generateShopCode = (url) => {
   }
 };
 
+//GET select box 
+router.get("/select-box", async (req, res) => {
+  try {
+    const { userId, type } = requireAuthUserId(req, res);
+    if (!userId) return;
+
+    const auth = getAuthContext(req);
+    let query = "SELECT id, name, code FROM shops";
+    const params = [];
+    let whereClauses = [];
+
+    // STAFF: Only show assigned shops
+    if (type === "STAFF") {
+      // Assuming you have a join table `user_shops`
+      whereClauses.push(
+        "id IN (SELECT shop_id FROM user_shops WHERE user_id = $" +
+          (params.length + 1) +
+          ")",
+      );
+      params.push(userId);
+    }
+
+    if (type != "ADMIN") {
+      whereClauses.push("owner_id = $" + (params.length + 1));
+      params.push(userId);
+    }
+
+    if (whereClauses.length > 0) {
+      query += " WHERE " + whereClauses.join(" AND ");
+    }
+
+    query += " ORDER BY name ASC";
+
+    const { rows } = await db.query(query, params);
+
+    if (!rows) {
+      return res.status(500).json({ error: "Failed to fetch shops" });
+    }
+
+    res.json({
+      shops: rows || [],
+    });
+  } catch (error) {
+    console.error("Error fetching shops:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // GET: List shops with pagination
 router.get("/", async (req, res) => {
   try {
@@ -38,49 +87,65 @@ router.get("/", async (req, res) => {
     const search = (req.query.search || "").toString().trim();
     const offset = (page - 1) * limit;
 
-    let query = supabase
-      .from("shops")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false });
+    let query = `
+      SELECT 
+        s.*, 
+        (SELECT COUNT(*) FROM shop_products sp WHERE sp.shop_id = s.id) as product_count
+      FROM shops s
+    `;
+    let countQuery = "SELECT count(*) FROM shops";
+    const params = [];
+    const countParams = [];
+    let whereClauses = [];
 
     // STAFF: Only show assigned shops
-    // if (auth?.type === "STAFF") {
-    //   const { data: assigned } = await supabase
-    //     .from("shop_")
-    //     .select("shop_id")
-    //     .eq("user_id", userId);
-    const assigned = [];
-    if (assigned.length > 0) {
-      const shopIds = (assigned || []).map((a) => a.shop_id);
-      if (shopIds.length === 0) {
-        return res.json({
-          shops: [],
-          total: 0,
-          page,
-          limit,
-          pages: 0,
-        });
-      }
-      query = query.in("id", shopIds);
+    if (type === "STAFF") {
+      // Assuming you have a join table `user_shops`
+      whereClauses.push(
+        "id IN (SELECT shop_id FROM user_shops WHERE user_id = $" +
+          (params.length + 1) +
+          ")",
+      );
+      params.push(userId);
+      countParams.push(userId);
     }
 
     if (search) {
-      query = query.or(
-        `name.ilike.%${search}%,url.ilike.%${search}%,code.ilike.%${search}%,platform.ilike.%${search}%`,
+      whereClauses.push(
+        "(name ILIKE $" +
+          (params.length + 1) +
+          " OR code ILIKE $" +
+          (params.length + 1) +
+          ")",
       );
+      params.push(`%${search}%`);
+      countParams.push(`%${search}%`);
     }
+
     if (type != "ADMIN") {
-      query.eq("owner_id", userId);
+      whereClauses.push("owner_id = $" + (params.length + 1));
+      params.push(userId);
+      countParams.push(userId);
     }
 
-    const {
-      data: shops,
-      error,
-      count,
-    } = await query.range(offset, offset + limit - 1);
+    if (whereClauses.length > 0) {
+      query += " WHERE " + whereClauses.join(" AND ");
+      countQuery += " WHERE " + whereClauses.join(" AND ");
+    }
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    query +=
+      " ORDER BY created_at DESC LIMIT $" +
+      (params.length + 1) +
+      " OFFSET $" +
+      (params.length + 2);
+    params.push(limit, offset);
+
+    const { rows: shops } = await db.query(query, params);
+    const { rows: countRows } = await db.query(countQuery, countParams);
+    const count = countRows[0].count;
+
+    if (!shops) {
+      return res.status(500).json({ error: "Failed to fetch shops" });
     }
 
     res.json({
@@ -104,15 +169,18 @@ router.get("/:id", async (req, res) => {
 
     const { id } = req.params;
 
-    const query = supabase.from("shops").select("*").eq("id", id);
+    let query = "SELECT * FROM shops WHERE id = $1";
+    const params = [id];
 
     if (type != "ADMIN") {
-      query.eq("owner_id", userId);
+      query += " AND owner_id = $2";
+      params.push(userId);
     }
-    const { data: shop, error } = await query.single();
+    const { rows } = await db.query(query, params);
+    const shop = rows[0];
 
-    if (error) {
-      return res.status(404).json({ error: error.message });
+    if (!shop) {
+      return res.status(404).json({ error: "Shop not found" });
     }
 
     res.json(shop);
@@ -139,40 +207,24 @@ router.post("/", async (req, res) => {
       finalCode = generateShopCode(url);
     }
 
-    const { data: shop, error } = await supabase
-      .from("shops")
-      .insert({
-        name,
-        url,
-        platform,
-        code: finalCode,
-        owner_id: userId,
-        is_sys_product_by_link: false,
-      })
-      .select()
-      .single();
+    const { rows } = await db.query(
+      "INSERT INTO shops (name, url, platform, code, owner_id, is_sys_product_by_link) VALUES ($1, $2, $3, $4, $5, false) RETURNING *",
+      [name, url, platform, finalCode, userId],
+    );
+    const shop = rows[0];
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    if (!shop) {
+      return res.status(500).json({ error: "Failed to create shop" });
     }
 
     // Add brands if provided
     if (Array.isArray(brand_ids) && brand_ids.length > 0) {
-      const brandRecords = brand_ids.map((brand_id) => ({
-        shop_id: shop.id,
-        brand_id,
-      }));
-
-      const result = await supabase
-        .from("shop_brands")
-        .insert(brandRecords)
-        .select();
-      if (result.error) {
-        console.error("Error associating brands:", result.error);
-        res
-          .status(500)
-          .json({ error: "Shop updated but failed to associate brands" });
-      }
+      const brandValues = brand_ids
+        .map((brand_id) => `(${shop.id}, ${brand_id})`)
+        .join(", ");
+      await db.query(
+        `INSERT INTO shop_brands (shop_id, brand_id) VALUES ${brandValues}`,
+      );
     }
 
     res.status(201).json(shop);
@@ -185,50 +237,57 @@ router.post("/", async (req, res) => {
 // PUT: Update shop
 router.put("/:id", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
 
     const { id } = req.params;
-    const { name, url, platform, code, brand_ids } = req.body;
+    const { name, url, platform, code, is_active, brand_ids } = req.body;
 
-    const { data: shop, error } = await supabase
-      .from("shops")
-      .update({
-        name,
-        url,
-        platform,
-        code: code || generateShopCode(url),
-      })
-      .eq("id", id)
-      .eq("owner_id", userId)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    if (!name || !url || !platform) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Update brands if provided
-    if (Array.isArray(brand_ids)) {
-      // Delete existing brands
-      await supabase.from("shop_brands").delete().eq("shop_id", id);
+    let finalCode = code;
+    if (!finalCode) {
+      finalCode = generateShopCode(url);
+    }
 
-      // Add new brands
-      if (brand_ids.length > 0) {
-        const brandRecords = brand_ids.map((brand_id) => ({
-          shop_id: id,
-          brand_id,
-        }));
-        const result = await supabase
-          .from("shop_brands")
-          .insert(brandRecords)
-          .select();
-        if (result.error) {
-          res
-            .status(500)
-            .json({ error: "Shop updated but failed to associate brands" });
-        }
-      }
+    let query =
+      "UPDATE shops SET name = $1, url = $2, platform = $3, code = $4, is_active = $5, updated_at = NOW() WHERE id = $6";
+    const params = [
+      name,
+      url,
+      platform,
+      finalCode,
+      is_active === undefined ? true : Boolean(is_active),
+      id,
+    ];
+
+    if (type !== "ADMIN") {
+      query += " AND owner_id = $7";
+      params.push(userId);
+    }
+
+    query += " RETURNING *";
+
+    const { rows } = await db.query(query, params);
+    const shop = rows[0];
+
+    if (!shop) {
+      return res
+        .status(404)
+        .json({ error: "Shop not found or not authorized" });
+    }
+
+    // Update brands
+    await db.query("DELETE FROM shop_brands WHERE shop_id = $1", [id]);
+    if (Array.isArray(brand_ids) && brand_ids.length > 0) {
+      const brandValues = brand_ids
+        .map((brand_id) => `(${id}, ${brand_id})`)
+        .join(", ");
+      await db.query(
+        `INSERT INTO shop_brands (shop_id, brand_id) VALUES ${brandValues}`,
+      );
     }
 
     res.json(shop);
@@ -241,22 +300,32 @@ router.put("/:id", async (req, res) => {
 // DELETE: Delete shop
 router.delete("/:id", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
 
     const { id } = req.params;
 
-    const { error } = await supabase
-      .from("shops")
-      .delete()
-      .eq("id", id)
-      .eq("owner_id", userId);
+    let query = "DELETE FROM shops WHERE id = $1";
+    const params = [id];
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    if (type !== "ADMIN") {
+      query += " AND owner_id = $2";
+      params.push(userId);
     }
 
-    res.json({ success: true });
+    const { rowCount } = await db.query(query, params);
+
+    if (rowCount === 0) {
+      return res
+        .status(404)
+        .json({ error: "Shop not found or not authorized" });
+    }
+
+    // Also delete related product data
+    await db.query("DELETE FROM shop_products WHERE shop_id = $1", [id]);
+    await db.query("DELETE FROM shop_brands WHERE shop_id = $1", [id]);
+
+    res.status(204).send();
   } catch (error) {
     console.error("Error deleting shop:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -266,63 +335,48 @@ router.delete("/:id", async (req, res) => {
 // GET: Get shop products with pagination and search
 router.get("/:id/products", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
-    if (!userId) return;
-
-    const { id } = req.params;
-    const countOnly = req.query.count === "true";
-    const page = Math.max(parseInt(req.query.page) || 1, 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 200);
-    const offset = (page - 1) * limit;
+    const { id: shopId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 1000);
     const search = (req.query.search || "").toString().trim();
-    const brand = (req.query.brand || "").toString().trim();
+    const offset = (page - 1) * limit;
 
-    const { data: ownedShop, error: shopError } = await supabase
-      .from("shops")
-      .select("id")
-      .eq("id", id)
-      .maybeSingle();
+    let query = "SELECT * FROM shop_products WHERE shop_id = $1";
+    let countQuery = "SELECT count(*) FROM shop_products WHERE shop_id = $1";
+    const params = [shopId];
+    const countParams = [shopId];
 
-    let query = supabase
-      .from("shop_products")
-      .select("*", { count: "exact" })
-      .eq("shop_id", id);
-
-    // Apply search filters
     if (search) {
-      query = query.or(`name.ilike.%${search}%`);
-    }
-    if (brand) {
-      query = query.ilike("brand", `%${brand}%`);
+      query += " AND name ILIKE $2";
+      countQuery += " AND name ILIKE $2";
+      params.push(`%${search}%`);
+      countParams.push(`%${search}%`);
     }
 
-    if (countOnly) {
-      const { count, error } = await query.select("*", {
-        count: "exact",
-        head: true,
+    query +=
+      " ORDER BY created_at DESC LIMIT $" +
+      (params.length + 1) +
+      " OFFSET $" +
+      (params.length + 2);
+    params.push(limit, offset);
+
+    const { rows: products } = await db.query(query, params);
+    const { rows: countRows } = await db.query(countQuery, countParams);
+    const count = countRows[0].count;
+    if (!products) {
+      return res.status(500).json({ error: "Failed to fetch products" });
+    }
+    if (products.length === 0) {
+      return res.json({
+        products: [],
+        total: 0,
+        page,
+        limit,
+        pages: 0,
       });
-
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
-
-      return res.json({ count: count || 0 });
     }
-
-    const {
-      data: products,
-      error,
-      count,
-    } = await query
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-
     res.json({
-      products: products || [],
+      products: products.map(normalizeProduct),
       total: count || 0,
       page,
       limit,
@@ -337,24 +391,28 @@ router.get("/:id/products", async (req, res) => {
 // POST: Reset product status
 router.post("/:id/reset-product-status", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
-    if (!userId) return;
+    const { id: shopId } = req.params;
 
-    const { id } = req.params;
+    const { rowCount } = await db.query(
+      "UPDATE shop_products SET is_warning_checked = false, is_under_original = false WHERE shop_id = $1",
+      [shopId],
+    );
 
-    const { data: shop, error } = await supabase
-      .from("shops")
-      .update({ is_sys_product_by_link: false })
-      .eq("id", id)
-      .eq("owner_id", userId)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    if (rowCount === 0) {
+      console.log(`No products found for shop ${shopId} to reset status.`);
     }
 
-    res.json({ success: true, shop });
+    const { rows } = await db.query(
+      "UPDATE shops SET is_sys_product_by_link = false WHERE id = $1 RETURNING *",
+      [shopId],
+    );
+    const updatedShop = rows[0];
+
+    res.json({
+      success: true,
+      message: `Reset status for ${rowCount} products.`,
+      shop: updatedShop,
+    });
   } catch (error) {
     console.error("Error resetting product status:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -364,130 +422,67 @@ router.post("/:id/reset-product-status", async (req, res) => {
 // POST: Import products from Excel
 router.post("/:id/import-products", async (req, res) => {
   try {
-    const { userId } = getAuthContext(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
+    const { id: shopId } = req.params;
+    const { userId } = requireAuthUserId(req, res);
+    if (!userId) return;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
     }
 
-    const { id } = req.params;
-    const products = req.body;
-    if (!Array.isArray(products) || products.length === 0) {
-      return res.status(400).json({ error: "Invalid products data" });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+    const worksheet = workbook.getWorksheet(1);
+
+    if (!worksheet) {
+      return res.status(400).json({ error: "No worksheet found in the file" });
     }
 
-    const urls = products.map((p) => p["url"] || "").filter((u) => u);
-    if (urls.length > 0) {
-      const validUrlPattern = /^https?:\/\/(www\.)?shopee\.vn\/.+$/i;
-      const invalidUrls = urls.filter((url) => !validUrlPattern.test(url));
-      if (invalidUrls.length > 0) {
-        return res.status(400).json({
-          error: "Invalid product URLs",
-          details: `Các URL sau không hợp lệ: ${invalidUrls.join(", ")}`,
+    const productsToInsert = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // Skip header
+
+      const name = row.getCell(1).value?.toString().trim();
+      const original_price = parseFloat(row.getCell(2).value);
+
+      if (name && !isNaN(original_price)) {
+        productsToInsert.push({
+          shop_id: shopId,
+          name,
+          original_price,
+          is_manual: true,
+          created_by: userId,
         });
       }
-    }
-    // call api get products by urls
-    const fetchProductDetailsByUrls = async (urls) => {
-      try {
-        const response = await fetch(
-          "https://tool-api.gitlabserver.id.vn/common/detail-products",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ urls }),
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        return data;
-      } catch (error) {
-        console.error("Error fetching product details by URLs:", error);
-        return [];
-      }
-    };
-    const mapUrlAndProduct = await fetchProductDetailsByUrls(urls);
-
-    const productsToInsert = products
-      .map((p) => {
-        const fetchedProduct = mapUrlAndProduct[p.url];
-        if (!fetchedProduct || !fetchedProduct.product?.id) {
-          return null;
-        }
-
-        const product = fetchedProduct.product;
-        return {
-          shop_id: id,
-          external_id: product.id.toString(),
-          name: product.name || p.name,
-          url: p.url,
-          price: product.price || p.price || 0,
-          price_min: product.priceMin || product.price || 0,
-          price_max: product.priceMax || product.price || 0,
-          rating: product.rating || null,
-          sold: product.sold || 0,
-          image: product.image || null,
-          description: product.description || null,
-          brand: product.brand || p.brand || null,
-          discount: p.discount || null,
-          created_at: new Date().toISOString(),
-        };
-      })
-      .filter((p) => p !== null);
+    });
 
     if (productsToInsert.length === 0) {
-      return res.status(400).json({
-        error: "Không có sản phẩm hợp lệ để import",
-      });
+      return res
+        .status(400)
+        .json({ error: "No valid product data found in the file" });
     }
 
-    // check exist external_id in shop_products
-    const externalIds = productsToInsert.map((p) => p.external_id);
-    const { data: existingProducts, error: existError } = await supabase
-      .from("shop_products")
-      .select("external_id")
-      .in("external_id", externalIds)
-      .eq("shop_id", id);
+    const columns = [
+      "shop_id",
+      "name",
+      "original_price",
+      "is_manual",
+      "created_by",
+    ].join(", ");
+    const values = productsToInsert
+      .map(
+        (p) =>
+          `(${p.shop_id}, '${p.name.replace(/'/g, "''")}', ${p.original_price}, ${p.is_manual}, '${p.created_by}')`,
+      )
+      .join(", ");
 
-    if (existError) {
-      return res.status(500).json({
-        error: "Lỗi khi kiểm tra sản phẩm tồn tại",
-        details: existError.message,
-      });
-    }
-    const existingExternalIds = existingProducts.map((p) => p.external_id);
-    const newProductsToInsert = productsToInsert.filter(
-      (p) => !existingExternalIds.includes(p.external_id),
-    );
+    const query = `INSERT INTO shop_products (${columns}) VALUES ${values} ON CONFLICT (shop_id, name) DO UPDATE SET original_price = EXCLUDED.original_price, is_manual = EXCLUDED.is_manual, updated_at = NOW()`;
 
-    if (newProductsToInsert.length === 0) {
-      return res.status(400).json({
-        error: "Tất cả sản phẩm đã tồn tại trong shop",
-      });
-    }
-
-    // Insert into database
-    const { data: inserted, error: insertError } = await supabase
-      .from("shop_products")
-      .insert(newProductsToInsert)
-      .select();
-
-    if (insertError) {
-      return res.status(500).json({
-        error: "Lỗi khi lưu sản phẩm",
-        details: insertError.message,
-      });
-    }
+    await db.query(query);
 
     res.json({
       success: true,
-      inserted: inserted?.length || 0,
-      total: products.length,
+      message: `Successfully imported/updated ${productsToInsert.length} products.`,
     });
   } catch (error) {
     console.error("Error importing products:", error);

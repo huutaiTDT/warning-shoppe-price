@@ -9,7 +9,6 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ShopOutlined,
-  ShoppingOutlined,
   TagsOutlined,
   UserOutlined,
 } from "@ant-design/icons";
@@ -22,7 +21,7 @@ import {
   Menu,
   message,
 } from "antd";
-import { Package } from "lucide-react";
+import { BarChart2, Package } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 
@@ -189,6 +188,11 @@ export default function DashboardLayout() {
       label: <Link to='/dashboard'>Dashboard</Link>,
     },
     {
+      key: "/dashboard/reports",
+      icon: <BarChart2 size={16} />,
+      label: <Link to='/dashboard/reports'>Báo cáo</Link>,
+    },
+    {
       key: "/dashboard/brands",
       icon: <TagsOutlined />,
       label: <Link to='/dashboard/brands'>Thương hiệu</Link>,
@@ -198,9 +202,10 @@ export default function DashboardLayout() {
       icon: <ShopOutlined />,
       label: <Link to='/dashboard/shops'>Cửa hàng</Link>,
     },
+
     {
       key: "/dashboard/master-products",
-      icon: <ShoppingOutlined />,
+      icon: <Package size={16} />,
       label: <Link to='/dashboard/master-products'>Sản phẩm</Link>,
     },
     {

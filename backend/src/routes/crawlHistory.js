@@ -1,7 +1,7 @@
 /** @format */
 
 import { Router } from "express";
-import { supabase } from "../lib/supabase.js";
+import { db } from "../lib/db.js";
 
 const router = Router();
 
@@ -26,30 +26,49 @@ router.get("/", async (req, res) => {
     const shopId = (req.query.shopId || "").toString().trim();
     const offset = (page - 1) * limit;
 
-    let query = supabase
-      .from("crawl_histories")
-      .select(
-        "id, shop_id, product_count, crawled_count, status, started_at, completed_at, error_message, shops:shop_id(id, name)",
-        { count: "exact" },
-      )
-      .order("started_at", { ascending: false });
+    let query = `
+      SELECT 
+        ch.id, ch.shop_id, ch.product_count, ch.crawled_count, ch.status, 
+        ch.started_at, ch.completed_at, ch.error_message, s.name as "shopName"
+      FROM crawl_histories ch
+      LEFT JOIN shops s ON ch.shop_id = s.id
+    `;
+    let countQuery = "SELECT COUNT(*) FROM crawl_histories";
+    const params = [];
+    let whereClauses = [];
 
     if (status) {
-      query = query.eq("status", status);
+      whereClauses.push("status = $" + (params.length + 1));
+      params.push(status);
     }
 
     if (shopId) {
-      query = query.eq("shop_id", shopId);
+      whereClauses.push("shop_id = $" + (params.length + 1));
+      params.push(shopId);
     }
 
-    const {
-      data: history,
-      error,
-      count,
-    } = await query.range(offset, offset + limit - 1);
+    if (whereClauses.length > 0) {
+      const whereString = whereClauses.join(" AND ");
+      query += " WHERE " + whereString;
+      countQuery += " WHERE " + whereString;
+    }
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    query +=
+      " ORDER BY started_at DESC LIMIT $" +
+      (params.length + 1) +
+      " OFFSET $" +
+      (params.length + 2);
+    params.push(limit, offset);
+
+    const { rows: history } = await db.query(query, params);
+    const { rows: countRows } = await db.query(
+      countQuery,
+      params.slice(0, params.length - 2),
+    );
+    const count = countRows[0].count;
+
+    if (!history) {
+      return res.status(500).json({ error: "Failed to fetch history" });
     }
 
     const normalized = (history || []).map(normalizeHistory);
@@ -72,16 +91,21 @@ router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
-      .from("crawl_histories")
-      .select(
-        "id, shop_id, product_count, crawled_count, status, started_at, completed_at, error_message, shops:shop_id(id, name)",
-      )
-      .eq("id", id)
-      .single();
+    const { rows } = await db.query(
+      `
+      SELECT 
+        ch.id, ch.shop_id, ch.product_count, ch.crawled_count, ch.status, 
+        ch.started_at, ch.completed_at, ch.error_message, s.name as "shopName"
+      FROM crawl_histories ch
+      LEFT JOIN shops s ON ch.shop_id = s.id
+      WHERE ch.id = $1
+    `,
+      [id],
+    );
+    const data = rows[0];
 
-    if (error) {
-      return res.status(404).json({ error: error.message });
+    if (!data) {
+      return res.status(404).json({ error: "History not found" });
     }
 
     res.json(normalizeHistory(data));

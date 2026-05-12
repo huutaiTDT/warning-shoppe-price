@@ -1,49 +1,43 @@
 /** @format */
-import { supabase } from "../lib/supabase.js";
+import db from "../lib/db.js";
 
 const scanAndUpdateWarningProduct = async (productId) => {
-  const { data: product, error: getError } = await supabase
-    .from("products")
-    .select("id, name, listed_price, variants")
-    .eq("id", productId)
-    .single();
-  if (getError || !product) {
+  const { rows: productRows } = await db.query(
+    "SELECT id, name, listed_price, variants FROM products WHERE id = $1",
+    [productId],
+  );
+  const product = productRows[0];
+
+  if (!product) {
     throw new Error("Product not found");
   }
-  const name = product.name || "";
+
   const price = product.listed_price || 0;
-  const variants = product?.variants;
-  const warnings = [];
-  const query = supabase
-    .from("shop_products")
-    .select("id, name, price_min, price, price_max, shop_id")
-    .or(`price_min.lt.${price},price.lt.${price},price_max.lt.${price}`);
-  let queryFilter = ``;
-  for (const row of variants || []) {
-    const variantString = row.toString().trim()?.toLowerCase();
-    if (variantString) {
-      if (queryFilter.length > 0) {
-        queryFilter += ",";
-      }
-      queryFilter += `name.ilike.%${variantString}%`;
-    }
-  }
-  const { data: shopProducts, error: shopProductError } =
-    await query.or(queryFilter);
-  if (shopProductError) {
-    console.error(
-      "Error fetching shop products for warning check:",
-      shopProductError,
+  const variants = product?.variants || [];
+
+  let query = `
+    SELECT id, name, price_min, price, price_max, shop_id 
+    FROM shop_products 
+    WHERE (price_min < $1 OR price < $1 OR price_max < $1)
+  `;
+  const params = [price];
+
+  if (variants.length > 0) {
+    const variantClauses = variants.map(
+      (_, i) => `name ILIKE $${params.length + i + 1}`,
     );
-    return;
+    query += ` AND (${variantClauses.join(" OR ")})`;
+    params.push(...variants.map((v) => `%${v.toString().trim()}%`));
   }
-  const isWarning = shopProducts?.length > 0 ? true : false;
-  await supabase
-    .from("products")
-    .update({
-      is_warning: isWarning,
-    })
-    .eq("id", productId);
+
+  const { rows: shopProducts } = await db.query(query, params);
+
+  const isWarning = shopProducts?.length > 0;
+
+  await db.query("UPDATE products SET is_warning = $1 WHERE id = $2", [
+    isWarning,
+    productId,
+  ]);
 };
 
 export { scanAndUpdateWarningProduct };

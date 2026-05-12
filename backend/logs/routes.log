@@ -1,0 +1,65 @@
+==========================================
+      REGISTERED API ROUTES
+   (Updated at 2026-05-12T08:25:55.379Z)
+==========================================
+[DELETE] /accounts/?(?=/|$)/:id
+[DELETE] /accounts/?(?=/|$)/:id/brands/:brand_id
+[DELETE] /master-data/brand-permissions/?(?=/|$)/:id
+[DELETE] /master-data/brands/?(?=/|$)/:id
+[DELETE] /master-data/products/?(?=/|$)/:id
+[DELETE] /master-data/shops/?(?=/|$)/:id
+[DELETE] /products/?(?=/|$)/:id
+[GET] /accounts/?(?=/|$)/
+[GET] /accounts/?(?=/|$)/:id
+[GET] /accounts/?(?=/|$)/:id/brands
+[GET] /accounts/?(?=/|$)/shops
+[GET] /auth/?(?=/|$)/me
+[GET] /crawl-history/?(?=/|$)/
+[GET] /crawl-history/?(?=/|$)/:id
+[GET] /health
+[GET] /master-data/brand-permissions/?(?=/|$)/account/:user_id
+[GET] /master-data/brand-permissions/?(?=/|$)/my-brands
+[GET] /master-data/brands/?(?=/|$)/
+[GET] /master-data/brands/?(?=/|$)/:id
+[GET] /master-data/brands/?(?=/|$)/select-box
+[GET] /master-data/brands/?(?=/|$)/select-box
+[GET] /master-data/products/?(?=/|$)/
+[GET] /master-data/products/?(?=/|$)/:id
+[GET] /master-data/products/?(?=/|$)/:id/get-warning
+[GET] /master-data/products/?(?=/|$)/export/xlsx
+[GET] /master-data/products/?(?=/|$)/template/download
+[GET] /master-data/shops/?(?=/|$)/
+[GET] /master-data/shops/?(?=/|$)/:id
+[GET] /master-data/shops/?(?=/|$)/:id/products
+[GET] /master-data/shops/?(?=/|$)/select-box
+[GET] /products/?(?=/|$)/:id
+[GET] /products/?(?=/|$)/:id/price-history
+[GET] /products/?(?=/|$)/export
+[GET] /products/?(?=/|$)/under-original-count
+[GET] /reports/?(?=/|$)/monthly-summary
+[GET] /reports/?(?=/|$)/price-fluctuations
+[OPTIONS] *
+[POST] /accounts/?(?=/|$)/
+[POST] /accounts/?(?=/|$)/:id/brands
+[POST] /auth/?(?=/|$)/change-password
+[POST] /auth/?(?=/|$)/login
+[POST] /auth/?(?=/|$)/logout
+[POST] /auth/?(?=/|$)/logout
+[POST] /master-data/brand-permissions/?(?=/|$)/
+[POST] /master-data/brands/?(?=/|$)/
+[POST] /master-data/products/?(?=/|$)/
+[POST] /master-data/products/?(?=/|$)/import
+[POST] /master-data/shops/?(?=/|$)/
+[POST] /master-data/shops/?(?=/|$)/:id/crawl
+[POST] /master-data/shops/?(?=/|$)/:id/import-products
+[POST] /master-data/shops/?(?=/|$)/:id/reset-product-status
+[POST] /products/?(?=/|$)/
+[POST] /products/?(?=/|$)/import
+[POST] /products/?(?=/|$)/sync-from-link
+[POST] /sync/?(?=/|$)/run
+[PUT] /accounts/?(?=/|$)/:id
+[PUT] /master-data/brands/?(?=/|$)/:id
+[PUT] /master-data/products/?(?=/|$)/:id
+[PUT] /master-data/shops/?(?=/|$)/:id
+[PUT] /products/?(?=/|$)/:id
+==========================================

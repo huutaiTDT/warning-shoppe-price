@@ -2,8 +2,8 @@
 
 import bcrypt from "bcrypt";
 import { Router } from "express";
+import { db } from "../lib/db.js";
 import { requireAuth } from "../lib/requestAuth.js";
-import { supabase } from "../lib/supabase.js";
 import { roleGuard } from "../middleware/roleGuard.js";
 
 const router = Router();
@@ -15,15 +15,12 @@ router.get("/", roleGuard(["ADMIN"]), async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const offset = (page - 1) * limit;
 
-    const { data, error, count } = await supabase
-      .from("users")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    const { rows: data } = await db.query(
+      "SELECT * FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+      [limit, offset],
+    );
+    const { rows: countRows } = await db.query("SELECT COUNT(*) FROM users");
+    const count = countRows[0].count;
 
     res.json({
       items: (data || []).map((u) => ({
@@ -63,39 +60,21 @@ router.post("/", roleGuard(["ADMIN"]), async (req, res) => {
     const defaultPassword = "123456";
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
-    // Create user
-    const { data: user, error: createError } = await supabase
-      .from("users")
-      .insert({
-        username,
-        email,
-        password_hash: hashedPassword,
-        type,
-        must_change_password: true,
-        is_active: true,
-      })
-      .select()
-      .single();
+    const { rows } = await db.query(
+      "INSERT INTO users (username, email, password_hash, type, must_change_password, is_active) VALUES ($1, $2, $3, $4, true, true) RETURNING *",
+      [username, email, hashedPassword, type],
+    );
+    const user = rows[0];
 
-    if (createError) {
-      return res.status(400).json({ error: createError.message });
+    if (!user) {
+      return res.status(500).json({ error: "Failed to create user" });
     }
 
     // Assign shops if STAFF
-    if (type === "STAFF" && Array.isArray(shopIds) && shopIds.length > 0) {
-      const assignments = shopIds.map((shopId) => ({
-        user_id: user.id,
-        shop_id: shopId,
-      }));
-
-      const { error: assignError } = await supabase
-        .from("account_shop_assignments")
-        .insert(assignments);
-
-      if (assignError) {
-        console.error("Error assigning shops:", assignError);
+      if (shopIds.length > 0) {
+        const values = shopIds.map(id => `(${user.id}, ${id})`).join(", ");
+        await db.query(`INSERT INTO account_shop_assignments (user_id, shop_id) VALUES ${values}`);
       }
-    }
 
     res.status(201).json({
       success: true,
@@ -119,24 +98,20 @@ router.get("/:id", roleGuard(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", id)
-      .single();
+    const { rows } = await db.query("SELECT * FROM users WHERE id = $1", [id]);
+    const user = rows[0];
 
-    if (error || !user) {
+    if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
     // Get assigned shops for STAFF
     let shops = [];
     if (user.type === "STAFF") {
-      const { data: assignments } = await supabase
-        .from("account_shop_assignments")
-        .select("shop_id")
-        .eq("user_id", id);
-
+      const { rows: assignments } = await db.query(
+        "SELECT shop_id FROM account_shop_assignments WHERE user_id = $1",
+        [id]
+      );
       shops = (assignments || []).map((a) => a.shop_id);
     }
 
@@ -162,40 +137,37 @@ router.put("/:id", roleGuard(["ADMIN"]), async (req, res) => {
     const { id } = req.params;
     const { email, type, is_active, shopIds, must_change_password } = req.body;
 
-    const updateData = {};
-    if (email) updateData.email = email;
-    if (type && ["STAFF", "ADMIN"].includes(type)) updateData.type = type;
-    if (is_active !== undefined) updateData.is_active = is_active;
-    if (must_change_password !== undefined)
-      updateData.must_change_password = must_change_password;
+    const updates = [];
+    const params = [];
+    if (email) { params.push(email); updates.push(`email = $${params.length}`); }
+    if (type && ["STAFF", "ADMIN"].includes(type)) { params.push(type); updates.push(`type = $${params.length}`); }
+    if (is_active !== undefined) { params.push(is_active); updates.push(`is_active = $${params.length}`); }
+    if (must_change_password !== undefined) { params.push(must_change_password); updates.push(`must_change_password = $${params.length}`); }
 
-    const { data: user, error: updateError } = await supabase
-      .from("users")
-      .update(updateData)
-      .eq("id", id)
-      .select()
-      .single();
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "No fields to update" });
+    }
 
-    if (updateError) {
-      return res.status(400).json({ error: updateError.message });
+    params.push(id);
+    const { rows } = await db.query(
+      `UPDATE users SET ${updates.join(", ")} WHERE id = $${params.length} RETURNING *`,
+      params
+    );
+    const user = rows[0];
+
+    if (!user) {
+      return res.status(400).json({ error: "User not found" });
     }
 
     // Update shop assignments if provided
     if (Array.isArray(shopIds)) {
       // Delete existing assignments
-      await supabase
-        .from("account_shop_assignments")
-        .delete()
-        .eq("user_id", id);
+      await db.query("DELETE FROM account_shop_assignments WHERE user_id = $1", [id]);
 
       // Create new assignments
       if (shopIds.length > 0) {
-        const assignments = shopIds.map((shopId) => ({
-          user_id: id,
-          shop_id: shopId,
-        }));
-
-        await supabase.from("account_shop_assignments").insert(assignments);
+        const values = shopIds.map(shopId => `(${id}, ${shopId})`).join(", ");
+        await db.query(`INSERT INTO account_shop_assignments (user_id, shop_id) VALUES ${values}`);
       }
     }
 
@@ -220,11 +192,7 @@ router.delete("/:id", roleGuard(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase.from("users").delete().eq("id", id);
-
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
+    await db.query("DELETE FROM users WHERE id = $1", [id]);
 
     res.json({ success: true, message: "Account deleted" });
   } catch (error) {
@@ -239,17 +207,13 @@ router.get("/shops", async (req, res) => {
     const auth = requireAuth(req, res);
     if (!auth) return;
 
-    const { data, error } = await supabase
-      .from("account_shop_assignments")
-      .select("shop_id, shops!shop_id(*)")
-      .eq("user_id", auth.userId);
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    const { rows: data } = await db.query(
+      `SELECT s.* FROM account_shop_assignments asa JOIN shops s ON asa.shop_id = s.id WHERE asa.user_id = $1`,
+      [auth.userId]
+    );
 
     res.json({
-      shops: (data || []).map((item) => item.shops).filter(Boolean),
+      shops: data || [],
     });
   } catch (error) {
     console.error("Error fetching assigned shops:", error);
@@ -265,21 +229,23 @@ router.get("/:id/brands", roleGuard(["ADMIN"]), async (req, res) => {
   try {
     const { id: userId } = req.params;
 
-    const { data: permissions, error } = await supabase
-      .from("account_brand_permissions")
-      .select("id, brand_id, brands(id, name, code)")
-      .eq("user_id", userId);
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    const { rows: permissions } = await db.query(
+      `
+      SELECT
+        abp.id AS "permissionId",
+        b.id,
+        b.name,
+        b.code
+      FROM account_brand_permissions abp
+      JOIN brands b ON abp.brand_id = b.id
+      WHERE abp.user_id = $1
+    `,
+      [userId],
+    );
 
     res.json({
       user_id: userId,
-      brands: (permissions || []).map((p) => ({
-        permissionId: p.id,
-        ...p.brands,
-      })),
+      brands: permissions || [],
     });
   } catch (error) {
     console.error("Error fetching account brands:", error);
@@ -302,13 +268,10 @@ router.post("/:id/brands", roleGuard(["ADMIN"]), async (req, res) => {
     }
 
     // Verify user exists and is STAFF
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("id, type")
-      .eq("id", userId)
-      .single();
+    const { rows } = await db.query("SELECT id, type FROM users WHERE id = $1", [userId]);
+    const user = rows[0];
 
-    if (userError || !user) {
+    if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
@@ -319,25 +282,12 @@ router.post("/:id/brands", roleGuard(["ADMIN"]), async (req, res) => {
     }
 
     // Delete existing permissions
-    await supabase
-      .from("account_brand_permissions")
-      .delete()
-      .eq("user_id", userId);
+    await db.query("DELETE FROM account_brand_permissions WHERE user_id = $1", [userId]);
 
     // Insert new permissions
     if (brand_ids.length > 0) {
-      const permissions = brand_ids.map((brand_id) => ({
-        user_id: userId,
-        brand_id,
-      }));
-
-      const { error: insertError } = await supabase
-        .from("account_brand_permissions")
-        .insert(permissions);
-
-      if (insertError) {
-        return res.status(400).json({ error: insertError.message });
-      }
+      const values = brand_ids.map(brand_id => `(${userId}, ${brand_id})`).join(", ");
+      await db.query(`INSERT INTO account_brand_permissions (user_id, brand_id) VALUES ${values}`);
     }
 
     res.json({
@@ -362,15 +312,7 @@ router.delete(
     try {
       const { id: userId, brand_id } = req.params;
 
-      const { error } = await supabase
-        .from("account_brand_permissions")
-        .delete()
-        .eq("user_id", userId)
-        .eq("brand_id", brand_id);
-
-      if (error) {
-        return res.status(400).json({ error: error.message });
-      }
+      await db.query("DELETE FROM account_brand_permissions WHERE user_id = $1 AND brand_id = $2", [userId, brand_id]);
 
       res.json({ success: true, message: "Brand removed from account" });
     } catch (error) {

@@ -1,7 +1,7 @@
 /** @format */
 
+import db from "../lib/db.js";
 import { getAuthContext } from "../lib/requestAuth.js";
-import { supabase } from "../lib/supabase.js";
 
 /**
  * Tenant isolation context middleware
@@ -15,37 +15,26 @@ export const tenantContextMiddleware = async (req, res, next) => {
     }
 
     // Get user's brand permissions
-    const { data: brandPermissions, error: brandError } = await supabase
-      .from("account_brand_permissions")
-      .select("brand_id")
-      .eq("user_id", auth.userId);
-
-    if (brandError) {
-      console.error("Error fetching brand permissions:", brandError);
-      return res.status(500).json({ error: "Failed to load tenant context" });
-    }
+    const { rows: brandPermissions } = await db.query(
+      "SELECT brand_id FROM account_brand_permissions WHERE user_id = $1",
+      [auth.userId],
+    );
 
     // Get user's assigned shops
-    const { data: shopAssignments, error: shopError } = await supabase
-      .from("user_shop_mappings")
-      .select("shop_id")
-      .eq("user_id", auth.userId);
-
-    if (shopError) {
-      console.error("Error fetching shop assignments:", shopError);
-      return res.status(500).json({ error: "Failed to load tenant context" });
-    }
+    const { rows: shopAssignments } = await db.query(
+      "SELECT shop_id FROM user_shop_mappings WHERE user_id = $1",
+      [auth.userId],
+    );
 
     // Get user details for ADMIN check
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("type")
-      .eq("id", auth.userId)
-      .single();
+    const { rows: users } = await db.query(
+      "SELECT type FROM users WHERE id = $1",
+      [auth.userId],
+    );
+    const user = users[0];
 
-    if (userError) {
-      console.error("Error fetching user type:", userError);
-      return res.status(500).json({ error: "Failed to load tenant context" });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
     }
 
     // Attach tenant context to request
@@ -79,26 +68,22 @@ export const canAccessProduct = async (
 
   // Check brand permission
   if (productBrandId) {
-    const { data, error } = await supabase
-      .from("account_brand_permissions")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("brand_id", productBrandId)
-      .limit(1);
-
-    if (!error && data?.length > 0) {
+    const { rows } = await db.query(
+      "SELECT id FROM account_brand_permissions WHERE user_id = $1 AND brand_id = $2 LIMIT 1",
+      [userId, productBrandId],
+    );
+    if (rows.length > 0) {
       return true;
     }
   }
 
   // Check if user is ADMIN
-  const { data: user, error } = await supabase
-    .from("users")
-    .select("type")
-    .eq("id", userId)
-    .single();
+  const { rows } = await db.query("SELECT type FROM users WHERE id = $1", [
+    userId,
+  ]);
+  const user = rows[0];
 
-  return !error && user?.type === "ADMIN";
+  return user?.type === "ADMIN";
 };
 
 /**
@@ -111,25 +96,23 @@ export const canAccessShop = async (userId, shopOwnerId) => {
   }
 
   // Check if assigned to shop
-  const { data, error } = await supabase
-    .from("user_shop_mappings")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("shop_id", shopOwnerId)
-    .limit(1);
+  const { rows } = await db.query(
+    "SELECT id FROM user_shop_mappings WHERE user_id = $1 AND shop_id = $2 LIMIT 1",
+    [userId, shopOwnerId],
+  );
 
-  if (!error && data?.length > 0) {
+  if (rows.length > 0) {
     return true;
   }
 
   // Check if user is ADMIN
-  const { data: user, error: userError } = await supabase
-    .from("users")
-    .select("type")
-    .eq("id", userId)
-    .single();
+  const { rows: userRows } = await db.query(
+    "SELECT type FROM users WHERE id = $1",
+    [userId],
+  );
+  const user = userRows[0];
 
-  return !userError && user?.type === "ADMIN";
+  return user?.type === "ADMIN";
 };
 
 /**
@@ -175,15 +158,18 @@ export const logTenantAccess = async (
   details = {},
 ) => {
   try {
-    await supabase.from("tenant_access_logs").insert({
-      user_id: userId,
-      action,
-      resource_type: resourceType,
-      resource_id: resourceId,
-      details,
-      ip_address: null, // Optionally extract from request
-      created_at: new Date(),
-    });
+    await db.query(
+      "INSERT INTO tenant_access_logs (user_id, action, resource_type, resource_id, details, ip_address, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [
+        userId,
+        action,
+        resourceType,
+        resourceId,
+        details,
+        null, // Optionally extract from request
+        new Date(),
+      ],
+    );
   } catch (error) {
     console.error("Error logging tenant access:", error);
     // Don't throw - this is audit-only

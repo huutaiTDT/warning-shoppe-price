@@ -2,8 +2,8 @@
 
 import bcrypt from "bcrypt";
 import { Router } from "express";
+import { db } from "../lib/db.js";
 import { requireAuth, signAuthToken } from "../lib/requestAuth.js";
-import { supabase } from "../lib/supabase.js";
 const salt = 12;
 
 const router = Router();
@@ -17,15 +17,13 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Missing credentials" });
     }
 
-    // Get user from database
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("username", username)
-      .eq("is_active", true)
-      .maybeSingle();
+    const { rows } = await db.query(
+      "SELECT * FROM users WHERE username = $1 AND is_active = true",
+      [username],
+    );
+    const user = rows[0];
 
-    if (error || !user) {
+    if (!user) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
@@ -75,14 +73,12 @@ router.post("/change-password", async (req, res) => {
         .json({ error: "Password must be at least 6 characters" });
     }
 
-    // Fetch user
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", auth.userId)
-      .single();
+    const { rows } = await db.query("SELECT * FROM users WHERE id = $1", [
+      auth.userId,
+    ]);
+    const user = rows[0];
 
-    if (userError || !user) {
+    if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
@@ -95,17 +91,13 @@ router.post("/change-password", async (req, res) => {
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update user
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({
-        password_hash: hashedPassword,
-        must_change_password: false,
-      })
-      .eq("id", auth.userId);
+    const { rows: updatedRows } = await db.query(
+      "UPDATE users SET password_hash = $1, must_change_password = false WHERE id = $2 RETURNING *",
+      [hashedPassword, auth.userId],
+    );
 
-    if (updateError) {
-      return res.status(500).json({ error: updateError.message });
+    if (updatedRows.length === 0) {
+      return res.status(500).json({ error: "Failed to update password" });
     }
 
     // Generate new token
@@ -139,15 +131,13 @@ router.get("/me", async (req, res) => {
     const auth = requireAuth(req, res);
     if (!auth) return;
 
-    const { data: user, error } = await supabase
-      .from("users")
-      .select(
-        "id, username, email, type, must_change_password, is_active, created_at",
-      )
-      .eq("id", auth.userId)
-      .single();
+    const { rows } = await db.query(
+      "SELECT id, username, email, type, must_change_password, is_active, created_at FROM users WHERE id = $1",
+      [auth.userId],
+    );
+    const user = rows[0];
 
-    if (error || !user) {
+    if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
