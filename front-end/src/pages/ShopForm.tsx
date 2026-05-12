@@ -70,7 +70,7 @@ export default function ShopFormPage() {
       try {
         const res = await shopsAPI.get(id);
         const shop = res.data || {};
-        const brandIds = shop.shop_brands?.map((sb: any) => sb.brand_id) || [];
+        const brandIds: string[] = []; // shop_brands relationship doesn't exist in schema
         form.setFieldsValue({
           code: shop.code,
           name: shop.name,

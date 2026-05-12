@@ -9,26 +9,34 @@ dotenv.config({ path: path.join(__dirname, "../.env") });
 
 import cors from "cors";
 import express from "express";
+import fs from "fs";
 
 // Import routes
-import accountSettingsRoutes from "./routes/accountSettings.js";
+import { cacheMiddleware } from "./middleware/cache.js";
+import { tenantContextMiddleware } from "./middleware/tenantContext.js";
+import accountsRoutes from "./routes/accounts.js";
 import authRoutes from "./routes/auth.js";
-import brandsRoutes from "./routes/brands.js";
+import brandPermissionsRoutes from "./routes/brandPermissions.js";
+import masterDataBrandsRoutes from "./routes/brands.js";
 import crawlRoutes from "./routes/crawl.js";
 import crawlHistoryRoutes from "./routes/crawlHistory.js";
-import dashboardRoutes from "./routes/dashboard.js";
-import postSchedulesRoutes from "./routes/postSchedules.js";
-import productsRoutes from "./routes/products.js";
-import shopsRoutes from "./routes/shops.js";
-import { startPostScheduler } from "./services/postScheduler.js";
+import productsRoutes from "./routes/products-shop.js";
+import masterProductsRoutes from "./routes/products.js";
+import reportsRoutes from "./routes/reports.js";
+import masterDataShopsRoutes from "./routes/shops.js";
+import syncRoutes from "./routes/sync.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 const allowedOrigins = [
   "*",
+  "http://localhost:5175",
+  "http://localhost:5432",
+  "http://localhost:5173",
   "http://localhost:5173",
   "https://warning-shoppe-price.vercel.app",
+  "https://warning-price.gitlabserver.id.vn",
   ...(process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : []),
   ...(process.env.CORS_ORIGINS ?
     process.env.CORS_ORIGINS.split(",")
@@ -54,6 +62,14 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
+// Apply cache to all GET requests
+app.use((req, res, next) => {
+  if (req.method === "GET") {
+    return cacheMiddleware(req, res, next);
+  }
+  next();
+});
+
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date() });
@@ -61,14 +77,74 @@ app.get("/health", (req, res) => {
 
 // API Routes
 app.use("/auth", authRoutes);
-app.use("/shops", shopsRoutes);
-app.use("/shops", crawlRoutes);
-app.use("/products", productsRoutes);
+app.use("/accounts", accountsRoutes);
+app.use("/master-data/brands", masterDataBrandsRoutes);
+app.use(
+  "/master-data/brand-permissions",
+  tenantContextMiddleware,
+  brandPermissionsRoutes,
+);
+app.use("/master-data/shops", crawlRoutes);
+app.use("/products", tenantContextMiddleware, productsRoutes);
 app.use("/crawl-history", crawlHistoryRoutes);
-app.use("/master-data/brands", brandsRoutes);
-app.use("/dashboard", dashboardRoutes);
-app.use("/account-settings", accountSettingsRoutes);
-app.use("/post-schedules", postSchedulesRoutes);
+app.use("/master-data/products", tenantContextMiddleware, masterProductsRoutes);
+app.use("/master-data/shops", masterDataShopsRoutes);
+app.use("/sync", syncRoutes);
+app.use("/reports", reportsRoutes);
+
+function printRoutes(app) {
+  const logDir = path.join(__dirname, "..", "logs");
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir);
+  }
+  const logFile = path.join(logDir, "routes.log");
+
+  let output = "==========================================\n";
+  output += "      REGISTERED API ROUTES\n";
+  output += `   (Updated at ${new Date().toISOString()})\n`;
+  output += "==========================================\n";
+
+  const routes = [];
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      // Routes registered directly on the app
+      const methods = Object.keys(middleware.route.methods)
+        .join(", ")
+        .toUpperCase();
+      routes.push(`[${methods}] ${middleware.route.path}`);
+    } else if (middleware.name === "router") {
+      // Routes registered on a sub-router
+      const servicePath = middleware.regexp
+        .toString()
+        .replace(/\\/g, "")
+        .replace("?i", "")
+        .slice(2, -1)
+        .replace("(?:\\/)?", "")
+        .replace("(?=\\/|$)", "");
+
+      middleware.handle.stack.forEach((handler) => {
+        if (handler.route) {
+          const methods = Object.keys(handler.route.methods)
+            .join(", ")
+            .toUpperCase();
+          // Combine the sub-router path with the route path
+          const fullPath = (
+            servicePath + (handler.route.path === "/" ? "" : handler.route.path)
+          ).replace("//", "/");
+          routes.push(`[${methods}] ${fullPath}`);
+        }
+      });
+    }
+  });
+
+  // Sort routes alphabetically for better readability
+  routes.sort();
+  output += routes.join("\n");
+  output += "\n==========================================\n";
+
+  fs.writeFileSync(logFile, output);
+  console.log(`✓ API routes have been logged to ${logFile}`);
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -82,7 +158,6 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  startPostScheduler();
   console.log(`✓ Backend running on http://localhost:${PORT}`);
-  console.log(`✓ Frontend should connect to http://localhost:${PORT}/api`);
+  printRoutes(app);
 });

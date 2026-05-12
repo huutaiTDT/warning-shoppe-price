@@ -60,14 +60,11 @@ export default function ShopSnapshotPopover({
     try {
       const [shopRes, countRes] = await Promise.all([
         shopsAPI.get(shopId),
-        shopsAPI.getProducts(shopId, true),
+        shopsAPI.getProducts(shopId),
       ]);
 
       const shop = shopRes.data || {};
-      const brandNames =
-        shop.shop_brands
-          ?.map((sb: any) => sb.master_brands?.name)
-          .filter(Boolean) || [];
+      const brandNames: string[] = []; // shop_brands relationship doesn't exist in schema
 
       const nextSnapshot: SnapshotData = {
         id: shop.id || shopId,

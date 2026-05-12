@@ -1,0 +1,99 @@
+<!-- @format -->
+
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shopee Product Exporter</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Shopee Exporter</h1>
+        <p class="subtitle">Xuất sản phẩm sang Excel</p>
+      </div>
+
+      <div class="button-group">
+        <button id="loadHTML" class="btn btn-primary">
+          Lấy trang hiện tại
+        </button>
+        <button id="export" class="btn btn-secondary" disabled>
+          Xuất Excel
+        </button>
+        <button id="viewCache" class="btn btn-secondary">Xem cache</button>
+      </div>
+
+      <div class="result-container">
+        <div id="result" class="result-text"></div>
+        <div id="loading" class="loading hidden">
+          <div class="spinner"></div>
+          <p>Đang lấy dữ liệu...</p>
+        </div>
+      </div>
+
+      <div class="preview-section">
+        <h3>Xem trước</h3>
+        <div id="preview" class="preview-table"></div>
+      </div>
+
+      <div class="footer">
+        <small>v1.0.0</small>
+      </div>
+    </div>
+
+    <!-- Cache Viewer Modal -->
+    <div id="cacheModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Quản lý Cache</h2>
+          <button id="closeModal" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="cacheShopsContainer" class="cache-container">
+            <p class="loading-text">Đang tải cache...</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="clearAllCache" class="btn btn-danger">
+            Xóa tất cả cache
+          </button>
+          <button id="closeModalBtn" class="btn btn-secondary">Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="popup.js"></script>
+    <!-- XLSX Library - Multiple CDN Fallbacks -->
+    <!-- Primary: cdnjs -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+      onload="console.log('✅ XLSX loaded from cdnjs')"
+      onerror="loadXLSXFallback1()"></script>
+    <!-- Fallback 1: jsDelivr -->
+    <script id="xlsx-fallback-1">
+      function loadXLSXFallback1() {
+        console.warn("⚠️ cdnjs failed, trying jsDelivr...");
+        const script = document.createElement("script");
+        script.src =
+          "https://cdn.jsdelivr.net/gh/sheetjs/xlsx@0.18.5/dist/xlsx.full.min.js";
+        script.onload = () => console.log("✅ XLSX loaded from jsDelivr");
+        script.onerror = loadXLSXFallback2;
+        document.head.appendChild(script);
+      }
+
+      function loadXLSXFallback2() {
+        console.warn("⚠️ jsDelivr failed, trying unpkg...");
+        const script = document.createElement("script");
+        script.src = "https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js";
+        script.onload = () => console.log("✅ XLSX loaded from unpkg");
+        script.onerror = () => {
+          console.error("❌ All XLSX CDNs failed");
+          window.XLSX_FAILED = true;
+        };
+        document.head.appendChild(script);
+      }
+    </script>
+  </body>
+</html>
