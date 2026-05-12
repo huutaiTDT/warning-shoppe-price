@@ -12,7 +12,7 @@ sudo cp "$CONF_SRC" "$CONF_DEST"
 
 # Reload nginx để áp dụng cấu hình mới
 echo "Reloading nginx ..."
-sudo systemctl nginx -t
+sudo nginx -t
 sudo systemctl restart nginx
 
 echo "Nginx config updated!"
