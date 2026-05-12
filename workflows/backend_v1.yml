@@ -3,7 +3,7 @@ name: Deploy to Server
 on:
   push:
     branches:
-      - front-end
+      - develop-pg
 
 jobs:
   deploy:
