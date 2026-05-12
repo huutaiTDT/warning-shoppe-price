@@ -260,7 +260,7 @@ export default function ReportsPage() {
           <Space size='middle'>
             <RangePicker
               size='large'
-              onChange={(dates, dateStrings) =>
+              onChange={( dateStrings) =>
                 handleFilterChange("dates", dateStrings)
               }
             />

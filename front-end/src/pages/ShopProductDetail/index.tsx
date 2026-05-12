@@ -3,39 +3,39 @@
 import { productsAPI } from "@/services/api";
 import { AreaChart } from "@tremor/react";
 import {
-    Alert,
-    Button,
-    Card,
-    Col,
-    Descriptions,
-    Divider,
-    Empty,
-    Flex,
-    Image,
-    Row,
-    Space,
-    Spin,
-    Table,
-    Tag,
-    Typography,
-    theme,
+  Alert,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Divider,
+  Empty,
+  Flex,
+  Image,
+  Row,
+  Space,
+  Spin,
+  Table,
+  Tag,
+  Typography,
+  theme,
 } from "antd";
 import { format } from "date-fns";
 import {
-    ArrowLeft,
-    Clock,
-    ExternalLink,
-    Info,
-    ShoppingBag,
-    Star,
-    Store,
-    TrendingDown,
-    TrendingUp
+  ArrowLeft,
+  Clock,
+  ExternalLink,
+  Info,
+  ShoppingBag,
+  Star,
+  Store,
+  TrendingDown,
+  TrendingUp
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 export default function ShopProductDetailPage() {
   const navigate = useNavigate();
