@@ -186,6 +186,7 @@ export default function App() {
               />
               <Route path='settings' element={<Settings />} />
             </Route>
+            <Route path='/' element={<Dashboard />} />
             <Route path='*' element={<NotFoundPage />} />
           </Routes>
         </Router>
