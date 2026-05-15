@@ -11,17 +11,31 @@ const router = Router();
 const generateShopCode = (url) => {
   try {
     const urlObj = new URL(url);
+
     const pathname = urlObj.pathname;
+
     const shopSlug = pathname.replace(/^\//, "").split("?")[0];
+
     if (!shopSlug) return null;
 
-    const code = shopSlug
+    const baseCode = shopSlug
       .split("/")[0]
       .toUpperCase()
       .replace(/-/g, "_")
       .replace(/[^A-Z0-9_]/g, "");
 
-    return code || null;
+    // DDYYMMHH
+    const now = new Date();
+
+    const dd = String(now.getDate()).padStart(2, "0");
+
+    const yy = String(now.getFullYear()).slice(-2);
+
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+
+    const hh = String(now.getHours()).padStart(2, "0");
+    const datetimeCode = `${dd}${yy}${mm}${hh}`;
+    return `${baseCode}_${datetimeCode}`;
   } catch {
     return null;
   }
@@ -202,10 +216,7 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    let finalCode = code;
-    if (!finalCode) {
-      finalCode = generateShopCode(url);
-    }
+    let finalCode = generateShopCode(url);
 
     const { rows } = await db.query(
       "INSERT INTO shops (name, url, platform, code, owner_id, is_sys_product_by_link) VALUES ($1, $2, $3, $4, $5, false) RETURNING *",
