@@ -248,8 +248,8 @@ async function importProductsWebhookHandler(req, res) {
         p["Đã bán"] ? Number(String(p["Đã bán"]).replace(/\D/g, "")) : 0;
 
       const insertQuery = `
-        INSERT INTO shop_products(name, price_min, price_max, price, rating, sold, image, external_link, original_price, description, external_id, shop_id, brand, models, variants, raw)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        INSERT INTO shop_products(name, price_min, price_max, price, rating, sold, image, external_link,  description, external_id, shop_id, brand, models, variants, raw)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
         RETURNING *
       `;
 
@@ -262,7 +262,6 @@ async function importProductsWebhookHandler(req, res) {
         sold,
         null,
         url,
-        price,
         null,
         external_id,
         shopId,
