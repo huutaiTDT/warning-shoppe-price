@@ -621,7 +621,7 @@ function extractProductFromElement(item, index) {
 
     URL: extractProductUrl(item),
 
-    productImg: extractProductImage(item),
+    image: extractProductImage(item),
 
     Giá: extractPrice(item),
 
@@ -696,7 +696,9 @@ function extractProductUrl(item) {
 }
 
 function extractProductImage(item) {
-  const imageCandidates = item.querySelectorAll("img[src], img[srcset], img[data-src]");
+  const imageCandidates = item.querySelectorAll(
+    "img[src], img[srcset], img[data-src]",
+  );
 
   for (const image of imageCandidates) {
     const imageUrl = getImageUrlFromElement(image);
@@ -724,8 +726,8 @@ function getImageUrlFromElement(image) {
       .find((candidate) => candidate && !candidate.includes("data:image"));
 
     if (firstCandidate) {
-      return firstCandidate.startsWith("//")
-        ? `https:${firstCandidate}`
+      return firstCandidate.startsWith("//") ?
+          `https:${firstCandidate}`
         : firstCandidate;
     }
   }
@@ -842,7 +844,7 @@ function normalizeProductForWarningPrice(product) {
     "Product ID": product["Product ID"] || "N/A",
     "Tên sản phẩm": product["Tên sản phẩm"] || "",
     URL: product.URL || "N/A",
-    productImg: product.productImg || "N/A",
+    image: product.image || "N/A",
     Giá: normalizePriceValue(product.Giá),
     "Chiết khấu": product["Chiết khấu"] || "0%",
     "Đánh giá": Number(product["Đánh giá"] ?? 0),

@@ -27,7 +27,7 @@ const generateShopCode = (url) => {
   }
 };
 
-//GET select box 
+//GET select box
 router.get("/select-box", async (req, res) => {
   try {
     const { userId, type } = requireAuthUserId(req, res);
@@ -253,7 +253,7 @@ router.put("/:id", async (req, res) => {
     }
 
     let query =
-      "UPDATE shops SET name = $1, url = $2, platform = $3, code = $4, is_active = $5, updated_at = NOW() WHERE id = $6";
+      "UPDATE shops SET name = $1, url = $2, platform = $3, code = $4, is_active = $5 WHERE id = $6";
     const params = [
       name,
       url,
@@ -283,7 +283,7 @@ router.put("/:id", async (req, res) => {
     await db.query("DELETE FROM shop_brands WHERE shop_id = $1", [id]);
     if (Array.isArray(brand_ids) && brand_ids.length > 0) {
       const brandValues = brand_ids
-        .map((brand_id) => `(${id}, ${brand_id})`)
+        .map((brand_id) => `('${id}', '${brand_id}')`)
         .join(", ");
       await db.query(
         `INSERT INTO shop_brands (shop_id, brand_id) VALUES ${brandValues}`,
