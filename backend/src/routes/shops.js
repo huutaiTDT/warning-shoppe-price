@@ -34,7 +34,8 @@ const generateShopCode = (url) => {
     const mm = String(now.getMonth() + 1).padStart(2, "0");
 
     const hh = String(now.getHours()).padStart(2, "0");
-    const datetimeCode = `${dd}${yy}${mm}${hh}`;
+    const sc = String(now.getSeconds()).padStart(2, "0");
+    const datetimeCode = `${dd}${yy}${mm}${hh}${sc}`;
     return `${baseCode}_${datetimeCode}`;
   } catch {
     return null;
@@ -231,7 +232,7 @@ router.post("/", async (req, res) => {
     // Add brands if provided
     if (Array.isArray(brand_ids) && brand_ids.length > 0) {
       const brandValues = brand_ids
-        .map((brand_id) => `(${shop.id}, ${brand_id})`)
+        .map((brand_id) => `('${shop.id}', '${brand_id}')`)
         .join(", ");
       await db.query(
         `INSERT INTO shop_brands (shop_id, brand_id) VALUES ${brandValues}`,
