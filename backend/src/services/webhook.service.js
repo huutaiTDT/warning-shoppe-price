@@ -249,8 +249,8 @@ async function importProductsWebhookHandler(req, res) {
       const image = p["image"] || p.image || null;
 
       const insertQuery = `
-        INSERT INTO shop_products(name, price_min, price_max, price, rating, sold, image, external_link,  description, external_id, shop_id, brand, models, variants, raw, image)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        INSERT INTO shop_products(name, price_min, price_max, price, rating, sold, image, external_link,  description, external_id, shop_id, brand, models, variants)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
         RETURNING *
       `;
 
@@ -261,7 +261,7 @@ async function importProductsWebhookHandler(req, res) {
         price,
         rating,
         sold,
-        null,
+        image,
         url,
         null,
         external_id,
@@ -269,8 +269,6 @@ async function importProductsWebhookHandler(req, res) {
         null,
         [],
         [],
-        p,
-        image,
       ];
 
       const { rows: newRows } = await db.query(insertQuery, insertParams);
