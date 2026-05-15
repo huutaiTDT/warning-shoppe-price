@@ -1,13 +1,16 @@
 /** @format */
 
 import { useAuth } from "@/contexts/AuthContext";
-import { authAPI } from "@/services/api";
+import { authAPI, systemAPI } from "@/services/api";
 import {
   DashboardOutlined,
+  DownloadOutlined,
   HistoryOutlined,
+  InfoCircleOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  ReloadOutlined,
   ShopOutlined,
   TagsOutlined,
   UserOutlined,
@@ -29,6 +32,7 @@ const { Header, Sider, Content } = Layout;
 
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [reloadingCache, setReloadingCache] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, type, clearAuthSession } = useAuth();
@@ -122,6 +126,26 @@ export default function DashboardLayout() {
       ];
     }
 
+    if (path === "/dashboard/guides") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: "Hướng dẫn" },
+      ];
+    }
+    if (path === "/dashboard/extension-download") {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: "Tải Extension" },
+      ];
+    }
+    if (/^\/dashboard\/guides\/[^/]+$/.test(path)) {
+      return [
+        { title: <Link to='/dashboard'>Tổng quan</Link> },
+        { title: <Link to='/dashboard/guides'>Hướng dẫn</Link> },
+        { title: "Chi tiết" },
+      ];
+    }
+
     if (path === "/dashboard/settings") {
       return [
         { title: <Link to='/dashboard'>Tổng quan</Link> },
@@ -181,6 +205,18 @@ export default function DashboardLayout() {
     }
   };
 
+  const handleReloadCache = async () => {
+    try {
+      setReloadingCache(true);
+      await systemAPI.clearCache();
+      message.success("Làm mới cache thành công");
+    } catch (error) {
+      message.error("Lỗi khi làm mới cache");
+    } finally {
+      setReloadingCache(false);
+    }
+  };
+
   const menuItems = [
     {
       key: "/dashboard",
@@ -212,6 +248,24 @@ export default function DashboardLayout() {
       key: "/dashboard/crawl-history",
       icon: <HistoryOutlined />,
       label: <Link to='/dashboard/crawl-history'>Lịch sử quét</Link>,
+    },
+    {
+      key: "/dashboard/guides",
+      icon: <InfoCircleOutlined />,
+      label: <Link to='/dashboard/guides'>Hướng dẫn</Link>,
+    },
+    {
+      key: "extension-download",
+      icon: <DownloadOutlined />,
+      label: (
+        <a
+          href='https://pub-5012992c212f43fcb894bff7aa53f1f3.r2.dev/shopee-extension%202.zip'
+          target='_blank'
+          rel='noreferrer'
+          onClick={(e) => e.stopPropagation()}>
+          Tải Extension
+        </a>
+      ),
     },
     ...(type === "ADMIN" ?
       [
@@ -280,14 +334,25 @@ export default function DashboardLayout() {
             />
           </div>
 
-          <Dropdown menu={userMenu}>
-            <div className='flex items-center gap-3 cursor-pointer hover:opacity-80'>
-              <Avatar size='large' style={{ backgroundColor: "#10b981" }}>
-                {user?.username?.charAt(0)?.toUpperCase() || "A"}
-              </Avatar>
-              <span className='text-white'>{user?.username || "Admin"}</span>
-            </div>
-          </Dropdown>
+          <div className='flex items-center gap-2'>
+            <Button
+              type='text'
+              icon={<ReloadOutlined />}
+              loading={reloadingCache}
+              onClick={handleReloadCache}
+              title='Làm mới cache'
+              className='text-white'
+            />
+
+            <Dropdown menu={userMenu}>
+              <div className='flex items-center gap-3 cursor-pointer hover:opacity-80'>
+                <Avatar size='large' style={{ backgroundColor: "#10b981" }}>
+                  {user?.username?.charAt(0)?.toUpperCase() || "A"}
+                </Avatar>
+                <span className='text-white'>{user?.username || "Admin"}</span>
+              </div>
+            </Dropdown>
+          </div>
         </Header>
 
         <Content className='overflow-auto'>

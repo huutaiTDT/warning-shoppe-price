@@ -9,9 +9,11 @@ import {
   Routes,
 } from "react-router-dom";
 
+import ImageGalleryModal from "@/components/ImageGalleryModal";
 import Toast from "@/components/toast";
 import { useAppToastListener } from "@/components/toast/hook";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ImageGalleryProvider } from "@/contexts/ImageGalleryContext";
 import AdminAccountBrandManager from "@/pages/AdminAccountBrandManager";
 import BrandManager from "@/pages/BrandManager";
 import ChangePasswordPage from "@/pages/ChangePassword";
@@ -25,6 +27,8 @@ import ReportsPage from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import ShopForm from "@/pages/ShopForm";
 import Shops from "@/pages/Shops";
+import GuideDetail from "./pages/GuideDetail";
+import GuidesPage from "./pages/Guides";
 import MasterProductDetail from "./pages/MasterProductDetail";
 import ShopDetail from "./pages/ShopDetail";
 import ShopProductDetail from "./pages/ShopProductDetail";
@@ -145,53 +149,72 @@ export default function App() {
   return (
     <ConfigProvider locale={viVN} theme={theme as any}>
       <AuthProvider>
-        <Toast />
-        <Router>
-          <Routes>
-            <Route path='/login' element={<Login />} />
-            <Route path='/change-password' element={<ChangePasswordPage />} />
+        <ImageGalleryProvider>
+          <Toast />
+          <ImageGalleryModal />
+          <Router>
+            <Routes>
+              <Route path='/login' element={<Login />} />
+              <Route path='/change-password' element={<ChangePasswordPage />} />
 
-            <Route
-              path='/dashboard'
-              element={
-                <PrivateRoute>
-                  <DashboardLayout />
-                </PrivateRoute>
-              }>
-              <Route index element={<Dashboard />} />
-              <Route path='brands' element={<BrandManager />} />
-              <Route path='shops' element={<Shops />} />
-              <Route path='shops/new' element={<ShopForm />} />
-              <Route path='shops/:id' element={<ShopForm />} />
-              <Route path='shops/detail/:id' element={<ShopDetail />} />
-              <Route path='reports' element={<ReportsPage />} />
-              <Route path='master-products/:id' element={<MasterProductDetail />} />
-              <Route path='master-products' element={<MasterProductsPage />} />
-              <Route path='shop-product/:id' element={<ShopProductDetail />} />
-              <Route path='products' element={<MasterProductsPage />} />
-              {/* <Route path='products/new' element={<MasterProductFormPage />} /> */}
-              {/* <Route
+              <Route
+                path='/dashboard'
+                element={
+                  <PrivateRoute>
+                    <DashboardLayout />
+                  </PrivateRoute>
+                }>
+                <Route index element={<Dashboard />} />
+                <Route path='brands' element={<BrandManager />} />
+                <Route path='shops' element={<Shops />} />
+                <Route path='shops/new' element={<ShopForm />} />
+                <Route path='shops/:id' element={<ShopForm />} />
+                <Route path='shops/detail/:id' element={<ShopDetail />} />
+                <Route path='reports' element={<ReportsPage />} />
+                <Route
+                  path='master-products/:id'
+                  element={<MasterProductDetail />}
+                />
+                <Route
+                  path='master-products'
+                  element={<MasterProductsPage />}
+                />
+                <Route
+                  path='shop-product/:id'
+                  element={<ShopProductDetail />}
+                />
+                <Route path='products' element={<MasterProductsPage />} />
+                {/* <Route path='products/new' element={<MasterProductFormPage />} /> */}
+                {/* <Route
                 path='products/:id/edit'
                 element={<MasterProductFormPage />}
               /> */}
-              <Route path='crawl-history' element={<CrawlHistory />} />
-              <Route path='brands' element={<BrandManager />} />
+                <Route path='crawl-history' element={<CrawlHistory />} />
+                <Route path='brands' element={<BrandManager />} />
+                <Route
+                  path='admin/accounts'
+                  element={
+                    <AdminRoute>
+                      <AdminAccountBrandManager />
+                    </AdminRoute>
+                  }
+                />
+                <Route path='settings' element={<Settings />} />
+                <Route path='guides' element={<GuidesPage />} />
+                <Route path='guides/:id' element={<GuideDetail />} />
+              </Route>
               <Route
-                path='admin/accounts'
+                path='/'
                 element={
-                  <AdminRoute>
-                    <AdminAccountBrandManager />
-                  </AdminRoute>
+                  <PrivateRoute>
+                    <DashboardLayout />
+                  </PrivateRoute>
                 }
               />
-              <Route path='settings' element={<Settings />} />
-            </Route>
-            <Route path='/' element={ <PrivateRoute>
-                  <DashboardLayout />
-                </PrivateRoute>} />
-            <Route path='*' element={<NotFoundPage />} />
-          </Routes>
-        </Router>
+              <Route path='*' element={<NotFoundPage />} />
+            </Routes>
+          </Router>
+        </ImageGalleryProvider>
       </AuthProvider>
     </ConfigProvider>
   );

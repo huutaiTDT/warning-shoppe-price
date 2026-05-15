@@ -1,11 +1,12 @@
 ==========================================
       REGISTERED API ROUTES
-   (Updated at 2026-05-15T06:21:30.925Z)
+   (Updated at 2026-05-15T07:22:58.796Z)
 ==========================================
 [DELETE] /accounts/?(?=/|$)/:id
 [DELETE] /accounts/?(?=/|$)/:id/brands/:brand_id
 [DELETE] /master-data/brand-permissions/?(?=/|$)/:id
 [DELETE] /master-data/brands/?(?=/|$)/:id
+[DELETE] /master-data/guides/?(?=/|$)/:id
 [DELETE] /master-data/products/?(?=/|$)/:id
 [DELETE] /master-data/shops/?(?=/|$)/:id
 [DELETE] /products/?(?=/|$)/:id
@@ -23,6 +24,8 @@
 [GET] /master-data/brands/?(?=/|$)/:id
 [GET] /master-data/brands/?(?=/|$)/select-box
 [GET] /master-data/brands/?(?=/|$)/select-box
+[GET] /master-data/guides/?(?=/|$)/
+[GET] /master-data/guides/?(?=/|$)/:id
 [GET] /master-data/products/?(?=/|$)/
 [GET] /master-data/products/?(?=/|$)/:id
 [GET] /master-data/products/?(?=/|$)/:id/get-warning
@@ -47,6 +50,7 @@
 [POST] /auth/?(?=/|$)/logout
 [POST] /master-data/brand-permissions/?(?=/|$)/
 [POST] /master-data/brands/?(?=/|$)/
+[POST] /master-data/guides/?(?=/|$)/
 [POST] /master-data/products/?(?=/|$)/
 [POST] /master-data/products/?(?=/|$)/import
 [POST] /master-data/shops/?(?=/|$)/
@@ -57,10 +61,12 @@
 [POST] /products/?(?=/|$)/import
 [POST] /products/?(?=/|$)/sync-from-link
 [POST] /sync/?(?=/|$)/run
+[POST] /system/?(?=/|$)/cache/clear
 [POST] /webhook/?(?=/|$)/import-shop-products
 [POST] /webhook/?(?=/|$)/scan-price
 [PUT] /accounts/?(?=/|$)/:id
 [PUT] /master-data/brands/?(?=/|$)/:id
+[PUT] /master-data/guides/?(?=/|$)/:id
 [PUT] /master-data/products/?(?=/|$)/:id
 [PUT] /master-data/shops/?(?=/|$)/:id
 [PUT] /products/?(?=/|$)/:id

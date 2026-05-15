@@ -20,11 +20,13 @@ import brandPermissionsRoutes from "./routes/brandPermissions.js";
 import masterDataBrandsRoutes from "./routes/brands.js";
 import crawlRoutes from "./routes/crawl.js";
 import crawlHistoryRoutes from "./routes/crawlHistory.js";
+import guidesRoutes from "./routes/guides.js";
 import productsRoutes from "./routes/products-shop.js";
 import masterProductsRoutes from "./routes/products.js";
 import reportsRoutes from "./routes/reports.js";
 import masterDataShopsRoutes from "./routes/shops.js";
 import syncRoutes from "./routes/sync.js";
+import systemRoutes from "./routes/system.js";
 import webHookRoutes from "./routes/webhook.js";
 
 const app = express();
@@ -95,6 +97,8 @@ app.use("/master-data/shops", masterDataShopsRoutes);
 app.use("/sync", syncRoutes);
 app.use("/reports", reportsRoutes);
 app.use("/webhook", webHookRoutes);
+app.use("/master-data/guides", guidesRoutes);
+app.use("/system", systemRoutes);
 
 function printRoutes(app) {
   const logDir = path.join(__dirname, "..", "logs");

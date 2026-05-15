@@ -23,3 +23,8 @@ export const cache = new LRUCache(options);
 export function getCacheKey(req) {
   return `__express__${req.originalUrl || req.url}`;
 }
+
+export function clearCache() {
+  cache.clear();
+  console.log("[CACHE] Cleared all cache");
+}

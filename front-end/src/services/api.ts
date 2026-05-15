@@ -205,3 +205,22 @@ export const userBrandPermissionsAPI = {
   delete: (id: string) =>
     api.delete(`/master-data/user-brand-permissions/${id}`),
 };
+
+// Guides API
+export const guidesAPI = {
+  list: (page = 1, limit = 50) =>
+    api.get("/master-data/guides", { params: { page, limit } }),
+  get: (id: string) => api.get(`/master-data/guides/${id}`),
+  create: (data: { title: string; code: string; content?: string }) =>
+    api.post("/master-data/guides", data),
+  update: (
+    id: string,
+    data: { title: string; code: string; content?: string },
+  ) => api.put(`/master-data/guides/${id}`, data),
+  delete: (id: string) => api.delete(`/master-data/guides/${id}`),
+};
+
+// System API
+export const systemAPI = {
+  clearCache: () => api.post("/system/cache/clear"),
+};
