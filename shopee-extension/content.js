@@ -9,6 +9,11 @@
 // Utils
 // ============================================================================
 
+const SYSTEM_WARNING_PRICE_API_URL =
+  "https://warning-price-api.gitlabserver.id.vn/webhook/import-shop-products";
+
+const SYSTEM_WARNING_PRICE_SECRET = "WPR";
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -146,6 +151,11 @@ function injectFloatingAction() {
         color:#315efb;
       }
 
+      .se-success{
+        background:linear-gradient(135deg,#16a34a,#22c55e);
+        color:#fff;
+      }
+
       .se-result{
         margin-top:18px;
         background:#f8faff;
@@ -213,6 +223,10 @@ function injectFloatingAction() {
           <button class="se-btn se-secondary" id="se-export" disabled>
             📥 Xuất CSV
           </button>
+
+          <button class="se-btn se-success" id="se-upload" disabled>
+            ⬆️ Đẩy dữ liệu sản phẩm vào shop
+          </button>
         </div>
 
         <div class="se-result" id="se-result">
@@ -264,9 +278,49 @@ function setupPanelEvents() {
 
   const exportBtn = document.getElementById("se-export");
 
+  const uploadBtn = document.getElementById("se-upload");
+
   const resultDiv = document.getElementById("se-result");
 
   let cachedProducts = [];
+
+  uploadBtn?.addEventListener("click", async () => {
+    if (!cachedProducts.length) return;
+
+    try {
+      resultDiv.innerHTML = `
+          <div class="se-loading">
+            <div class="se-spinner"></div>
+            <div>Đang đẩy dữ liệu lên shop...</div>
+          </div>
+        `;
+
+      const shopUrl = normalizeShopUrl(window.location.href);
+      const payload = {
+        shopUrl,
+        products: cachedProducts.map(normalizeProductForWarningPrice),
+      };
+
+      const response = await fetch(SYSTEM_WARNING_PRICE_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-webhook-secret": SYSTEM_WARNING_PRICE_SECRET,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const responseText = await response.text();
+
+      if (!response.ok) {
+        throw new Error(responseText || `HTTP ${response.status}`);
+      }
+
+      resultDiv.innerHTML = `✅ Đã đẩy <b>${payload.products.length}</b> sản phẩm lên shop`;
+    } catch (err) {
+      resultDiv.innerHTML = `❌ ${err.message}`;
+    }
+  });
 
   loadBtn?.addEventListener("click", async () => {
     try {
@@ -287,11 +341,16 @@ function setupPanelEvents() {
           `;
 
         exportBtn.disabled = false;
+        uploadBtn.disabled = false;
       } else {
         resultDiv.innerHTML = "❌ Không có sản phẩm";
+        exportBtn.disabled = true;
+        uploadBtn.disabled = true;
       }
     } catch (err) {
       resultDiv.innerHTML = `❌ ${err.message}`;
+      exportBtn.disabled = true;
+      uploadBtn.disabled = true;
     }
   });
 
@@ -732,6 +791,63 @@ function extractSoldCount(item) {
   }
 
   return "0";
+}
+
+function normalizeProductForWarningPrice(product) {
+  return {
+    "Product ID": product["Product ID"] || "N/A",
+    "Tên sản phẩm": product["Tên sản phẩm"] || "",
+    URL: product.URL || "N/A",
+    Giá: normalizePriceValue(product.Giá),
+    "Chiết khấu": product["Chiết khấu"] || "0%",
+    "Đánh giá": Number(product["Đánh giá"] ?? 0),
+    "Đã bán": String(product["Đã bán"] ?? "0"),
+    "Trạng thái": product["Trạng thái"] || "Hoạt động",
+  };
+}
+
+function normalizePriceValue(value) {
+  if (typeof value === "number") return value;
+
+  if (value === null || value === undefined) return 0;
+
+  const text = String(value).replace(/\s+/g, "").toLowerCase();
+  if (!text) return 0;
+
+  const match = text.match(/^(\d+(?:[.,]\d+)?)([km])?/i);
+  if (!match) return 0;
+
+  const numericPart = match[1];
+  const suffix = match[2];
+
+  if (suffix === "k") {
+    return Math.round(parseFloat(numericPart.replace(/,/g, ".")) * 1000);
+  }
+
+  if (suffix === "m") {
+    return Math.round(parseFloat(numericPart.replace(/,/g, ".")) * 1000000);
+  }
+
+  if (numericPart.includes(".") && !numericPart.includes(",")) {
+    const parts = numericPart.split(".");
+
+    if (parts.length > 1 && parts.slice(1).every((part) => part.length === 3)) {
+      return parseInt(parts.join(""), 10) || 0;
+    }
+  }
+
+  return parseInt(numericPart.replace(/[.,]/g, ""), 10) || 0;
+}
+
+function normalizeShopUrl(url) {
+  try {
+    const parsed = new URL(url);
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch (err) {
+    return url;
+  }
 }
 
 // ============================================================================

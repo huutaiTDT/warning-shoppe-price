@@ -4,7 +4,11 @@
   "version": "1.0.0",
   "description": "Xuất toàn bộ sản phẩm từ shop Shopee sang Excel",
   "permissions": ["activeTab", "scripting", "downloads", "storage"],
-  "host_permissions": ["https://shopee.vn/*", "https://*.shopeeapis.com/*"],
+  "host_permissions": [
+    "https://shopee.vn/*",
+    "https://*.shopeeapis.com/*",
+    "https://your-server.example.com/*"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Shopee Product Exporter"

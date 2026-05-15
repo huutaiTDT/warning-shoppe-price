@@ -71,6 +71,9 @@ if (document.readyState === "complete") {
 
 const CONFIG = {
   SHOPEE_URL: "shopee.vn",
+  SYSTEM_WARNING_PRICE_API_URL:
+    "https://warning-price-api.gitlabserver.id.vn/webhook/import-shop-products",
+  SYSTEM_WARNING_PRICE_SECRET: "WPR",
 };
 
 const SELECTORS = {
@@ -100,6 +103,7 @@ const loadHTMLBtn = document.getElementById("loadHTML");
 const loadMultiPageBtn = document.getElementById("loadMultiPage");
 const maxPagesToLoadInput = document.getElementById("maxPagesToLoad");
 const exportBtn = document.getElementById("export");
+const pushWarningPriceBtn = document.getElementById("pushWarningPrice");
 const resultDiv = document.getElementById("result");
 const previewDiv = document.getElementById("preview");
 const loadingDiv = document.getElementById("loading");
@@ -117,6 +121,7 @@ const clearAllCacheBtn = document.getElementById("clearAllCache");
 loadHTMLBtn?.addEventListener("click", handleLoadFromHTML);
 loadMultiPageBtn?.addEventListener("click", handleLoadMultiPage);
 exportBtn?.addEventListener("click", handleExport);
+pushWarningPriceBtn?.addEventListener("click", handlePushToSystemWarningPrice);
 viewCacheBtn?.addEventListener("click", handleViewCache);
 closeModalBtn?.addEventListener("click", () =>
   cacheModal.classList.add("hidden"),
@@ -165,16 +170,16 @@ async function handleLoadFromHTML() {
       showSuccess(
         `✅ Đã lấy thành công <strong>${products.length}</strong> sản phẩm từ trang ${currentPage}<br><small>💾 Đã lưu cache</small>`,
       );
-      exportBtn.disabled = false;
+      setActionButtonsEnabled(true);
       showPreview(products.slice(0, 5));
     } else {
       showError("❌ Không tìm thấy sản phẩm. Kiểm tra trang web Shopee");
-      exportBtn.disabled = true;
+      setActionButtonsEnabled(false);
     }
   } catch (error) {
     console.error("Error:", error);
     showError(`❌ Lỗi: ${error.message}`);
-    exportBtn.disabled = true;
+    setActionButtonsEnabled(false);
   } finally {
     setLoading(false);
   }
@@ -221,7 +226,7 @@ async function handleLoadMultiPage() {
         showSuccess(
           `✅ Đã load từ cache: <strong>${products.length}</strong> sản phẩm từ ${pageList.length} trang`,
         );
-        exportBtn.disabled = false;
+        setActionButtonsEnabled(true);
         showPreview(products.slice(0, 5));
         setLoading(false);
         return;
@@ -328,18 +333,72 @@ async function handleLoadMultiPage() {
         `✅ Cào thành công <strong>${products.length}</strong> sản phẩm từ ${pagesToLoad} trang<br>` +
           `<small>✅ ${successPages}/${pagesToLoad} trang | 💾 Đã lưu cache</small>`,
       );
-      exportBtn.disabled = false;
+      setActionButtonsEnabled(true);
       showPreview(products.slice(0, 5));
     } else {
       showError(
         `❌ Không lấy được sản phẩm từ ${pagesToLoad} trang (${failedPages} lỗi)`,
       );
-      exportBtn.disabled = true;
+      setActionButtonsEnabled(false);
     }
   } catch (error) {
     console.error("Error:", error);
     showError(`❌ Lỗi: ${error.message}`);
-    exportBtn.disabled = true;
+    setActionButtonsEnabled(false);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function handlePushToSystemWarningPrice() {
+  if (products.length === 0) {
+    alert("Vui lòng lấy sản phẩm trước");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    resultDiv.innerHTML = "⏳ Đang đẩy dữ liệu lên Warning Price...";
+
+    const tab = await getActiveTab();
+    const shopUrl = normalizeShopUrl(tab?.url || window.location.href);
+    const payload = {
+      shopUrl,
+      products: products.map(normalizeProductForWarningPrice),
+    };
+
+    const response = await fetch(CONFIG.SYSTEM_WARNING_PRICE_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-webhook-secret": CONFIG.SYSTEM_WARNING_PRICE_SECRET,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const responseText = await response.text();
+    let responseData = responseText;
+
+    try {
+      responseData = responseText ? JSON.parse(responseText) : null;
+    } catch (err) {
+      // Keep plain text response if it is not JSON.
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        typeof responseData === "string" ? responseData : (
+          responseData?.message || responseText || `HTTP ${response.status}`
+        ),
+      );
+    }
+
+    showSuccess(
+      `✅ Đã đẩy <strong>${payload.products.length}</strong> sản phẩm lên Warning Price<br><small>${shopUrl}</small>`,
+    );
+  } catch (error) {
+    console.error("Warning Price export error:", error);
+    showError(`❌ Lỗi đẩy lên Warning Price: ${error.message}`);
   } finally {
     setLoading(false);
   }
@@ -843,6 +902,12 @@ function setLoading(loading) {
   isLoading = loading;
   loadingDiv.classList.toggle("hidden", !loading);
   loadHTMLBtn.disabled = loading;
+}
+
+function setActionButtonsEnabled(enabled) {
+  exportBtn.disabled = !enabled;
+  pushWarningPriceBtn.disabled = !enabled;
+  pushWarningPriceBtn.hidden = !enabled;
 }
 
 // ============================================================================

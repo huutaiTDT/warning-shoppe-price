@@ -32,6 +32,7 @@ const PORT = process.env.PORT || 3001;
 
 const allowedOrigins = [
   "*",
+  "https://shopee.vn",
   "https://tool-api.gitlabserver.id.vn",
   "http://localhost:5175",
   "http://localhost:5432",

@@ -1,6 +1,6 @@
 ==========================================
       REGISTERED API ROUTES
-   (Updated at 2026-05-12T10:37:45.875Z)
+   (Updated at 2026-05-15T04:23:45.672Z)
 ==========================================
 [DELETE] /accounts/?(?=/|$)/:id
 [DELETE] /accounts/?(?=/|$)/:id/brands/:brand_id
@@ -57,6 +57,7 @@
 [POST] /products/?(?=/|$)/import
 [POST] /products/?(?=/|$)/sync-from-link
 [POST] /sync/?(?=/|$)/run
+[POST] /webhook/?(?=/|$)/import-shop-products
 [POST] /webhook/?(?=/|$)/scan-price
 [PUT] /accounts/?(?=/|$)/:id
 [PUT] /master-data/brands/?(?=/|$)/:id
