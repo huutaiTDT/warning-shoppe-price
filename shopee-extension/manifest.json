@@ -15,6 +15,12 @@
       "js": ["content.js"]
     }
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.html", "popup.js", "style.css"],
+      "matches": ["https://shopee.vn/*"]
+    }
+  ],
   "background": {
     "service_worker": "background.js"
   }

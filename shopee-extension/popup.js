@@ -155,6 +155,9 @@ async function handleLoadFromHTML() {
     const htmlContent = await getHTMLFromContent(tab.id, tab.url);
     products = parseProductsFromHTML(htmlContent);
 
+    const currentPage = extractPageNumber(products);
+    const totalPage = extractTotalPagesFromHTML(products);
+
     if (products.length > 0) {
       // Lưu vào cache với page riêng biệt
       await saveProductsToCache(shopName, products, currentPage);
@@ -852,9 +855,37 @@ function getActiveTab() {
     .then((tabs) => tabs[0]);
 }
 
-function extractPageNumber(url) {
-  const pageMatch = url.match(/[?&]page=(\d+)/);
-  return pageMatch ? parseInt(pageMatch[1]) : 1;
+function extractPageNumber(products) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(products, "text/html");
+    const el = doc.querySelector(".shopee-mini-page-controller__current");
+    if (el) {
+      const txt = el.textContent?.trim();
+      const num = txt && txt.match(/(\d+)/);
+      if (num) return parseInt(num[1]);
+    }
+  } catch (e) {
+    // ignore and fallthrough
+  }
+
+  return 1;
+}
+function extractTotalPagesFromHTML(products) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(products, "text/html");
+    const el = doc.querySelector(".shopee-mini-page-controller__total");
+    if (el) {
+      const txt = el.textContent?.trim();
+      const num = txt && txt.match(/(\d+)/);
+      if (num) return parseInt(num[1]);
+    }
+  } catch (e) {
+    // ignore and fallthrough
+  }
+
+  return 1;
 }
 
 function extractShopName(url) {

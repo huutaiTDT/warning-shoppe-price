@@ -128,5 +128,170 @@ async function webhookHandler(req, res) {
   }
 }
 
-export { scanPrice, WEBHOOK_SECRET, webhookHandler };
-export default { scanPrice, webhookHandler };
+const normalizeStringArray = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => (item || "").toString().trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const parsePriceString = (s) => {
+  if (s === undefined || s === null) return 0;
+  if (typeof s === "number") return s;
+  const str = s.toString().toLowerCase();
+  // remove currency symbols
+  const cleaned = str.replace(/[,\s]+/g, "").replace(/đ/g, "");
+  // handle k notation
+  const kMatch = cleaned.match(/([0-9.]+)k/);
+  if (kMatch) return Number(kMatch[1]) * 1000;
+  const numMatch = cleaned.match(/([0-9.]+)/);
+  return numMatch ? Number(numMatch[1]) : 0;
+};
+
+/**
+ * Webhook handler to import an array of products into a shop.
+ * Expects body: { products: [ ... ], shopUrl: 'https://shopee.vn/shop/...' }
+ * Skips products where `external_id` / `Product ID` already exists for the shop.
+ */
+async function importProductsWebhookHandler(req, res) {
+  try {
+    const secretKey =
+      req.headers["x-webhook-secret"] || req.query.secret || req.body?.secret;
+    if (!secretKey || secretKey !== WEBHOOK_SECRET) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized: Invalid or missing secret key",
+      });
+    }
+
+    let products = req.body?.products || req.body?.data?.products || [];
+    const shopUrl =
+      req.body?.shopUrl || req.body?.shop_url || req.body?.shop || null;
+
+    if (!products || !Array.isArray(products)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid request: products array is required",
+      });
+    }
+
+    // flatten if wrapped in an extra array
+    if (products.length === 1 && Array.isArray(products[0]))
+      products = products[0];
+
+    // find shop
+    let shopId = null;
+    if (shopUrl) {
+      const { rows: shopRows } = await db.query(
+        "SELECT id, code, url FROM shops WHERE url = $1 LIMIT 1",
+        [shopUrl],
+      );
+      if (shopRows && shopRows.length > 0) shopId = shopRows[0].id;
+      else {
+        const code = generateShopCode(shopUrl);
+        if (code) {
+          const { rows: codeRows } = await db.query(
+            "SELECT id FROM shops WHERE code = $1 LIMIT 1",
+            [code],
+          );
+          if (codeRows && codeRows.length > 0) shopId = codeRows[0].id;
+        }
+      }
+    }
+
+    if (!shopId) {
+      return res.status(404).json({
+        success: false,
+        error: "Shop not found for provided shopUrl",
+        shopUrl,
+      });
+    }
+
+    const inserted = [];
+    const skipped = [];
+
+    for (const p of products) {
+      const external_id = (
+        p["Product ID"] ||
+        p.external_id ||
+        p["external_id"] ||
+        ""
+      ).toString();
+      if (!external_id) {
+        skipped.push({ reason: "missing_external_id", product: p });
+        continue;
+      }
+
+      // check existing
+      const { rows: exist } = await db.query(
+        "SELECT id FROM shop_products WHERE external_id = $1 AND shop_id = $2 LIMIT 1",
+        [external_id, shopId],
+      );
+      if (exist && exist.length > 0) {
+        skipped.push({ external_id, reason: "already_exists" });
+        continue;
+      }
+
+      const name = p["Tên sản phẩm"] || p.name || "";
+      const url = p.URL || p.url || null;
+      const price = parsePriceString(p["Giá"] || p.price || 0);
+      const rating = p["Đánh giá"] ? Number(p["Đánh giá"]) : null;
+      const sold =
+        p["Đã bán"] ? Number(String(p["Đã bán"]).replace(/\D/g, "")) : 0;
+
+      const insertQuery = `
+        INSERT INTO shop_products(name, price_min, price_max, price, rating, sold, image, external_link, original_price, description, external_id, shop_id, brand, models, variants, raw)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        RETURNING *
+      `;
+
+      const insertParams = [
+        name,
+        price,
+        price,
+        price,
+        rating,
+        sold,
+        null,
+        url,
+        price,
+        null,
+        external_id,
+        shopId,
+        null,
+        [],
+        [],
+        p,
+      ];
+
+      const { rows: newRows } = await db.query(insertQuery, insertParams);
+      inserted.push(newRows[0]);
+    }
+
+    return res.status(200).json({
+      success: true,
+      inserted: inserted.length,
+      skipped: skipped.length,
+      details: { inserted, skipped },
+    });
+  } catch (error) {
+    console.error("❌ importProductsWebhookHandler error:", error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+export {
+  importProductsWebhookHandler,
+  scanPrice,
+  WEBHOOK_SECRET,
+  webhookHandler,
+};
+export default { scanPrice, webhookHandler, importProductsWebhookHandler };
