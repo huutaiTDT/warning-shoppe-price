@@ -621,6 +621,8 @@ function extractProductFromElement(item, index) {
 
     URL: extractProductUrl(item),
 
+    productImg: extractProductImage(item),
+
     Giá: extractPrice(item),
 
     "Chiết khấu": extractDiscount(item),
@@ -691,6 +693,48 @@ function extractProductUrl(item) {
   }
 
   return href;
+}
+
+function extractProductImage(item) {
+  const imageCandidates = item.querySelectorAll("img[src], img[srcset], img[data-src]");
+
+  for (const image of imageCandidates) {
+    const imageUrl = getImageUrlFromElement(image);
+
+    if (imageUrl) {
+      return imageUrl;
+    }
+  }
+
+  return "N/A";
+}
+
+function getImageUrlFromElement(image) {
+  const src = image.getAttribute("src") || image.getAttribute("data-src") || "";
+
+  if (src && !src.includes("data:image") && src.includes("susercontent")) {
+    return src.startsWith("//") ? `https:${src}` : src;
+  }
+
+  const srcset = image.getAttribute("srcset") || "";
+  if (srcset) {
+    const firstCandidate = srcset
+      .split(",")
+      .map((candidate) => candidate.trim().split(" ")[0])
+      .find((candidate) => candidate && !candidate.includes("data:image"));
+
+    if (firstCandidate) {
+      return firstCandidate.startsWith("//")
+        ? `https:${firstCandidate}`
+        : firstCandidate;
+    }
+  }
+
+  if (src && !src.includes("data:image")) {
+    return src.startsWith("//") ? `https:${src}` : src;
+  }
+
+  return "";
 }
 
 function extractPrice(item) {
@@ -798,6 +842,7 @@ function normalizeProductForWarningPrice(product) {
     "Product ID": product["Product ID"] || "N/A",
     "Tên sản phẩm": product["Tên sản phẩm"] || "",
     URL: product.URL || "N/A",
+    productImg: product.productImg || "N/A",
     Giá: normalizePriceValue(product.Giá),
     "Chiết khấu": product["Chiết khấu"] || "0%",
     "Đánh giá": Number(product["Đánh giá"] ?? 0),

@@ -246,10 +246,11 @@ async function importProductsWebhookHandler(req, res) {
       const rating = p["Đánh giá"] ? Number(p["Đánh giá"]) : null;
       const sold =
         p["Đã bán"] ? Number(String(p["Đã bán"]).replace(/\D/g, "")) : 0;
+      const image = p["image"] || p.image || null;
 
       const insertQuery = `
-        INSERT INTO shop_products(name, price_min, price_max, price, rating, sold, image, external_link,  description, external_id, shop_id, brand, models, variants, raw)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+        INSERT INTO shop_products(name, price_min, price_max, price, rating, sold, image, external_link,  description, external_id, shop_id, brand, models, variants, raw, image)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
         RETURNING *
       `;
 
@@ -269,6 +270,7 @@ async function importProductsWebhookHandler(req, res) {
         [],
         [],
         p,
+        image,
       ];
 
       const { rows: newRows } = await db.query(insertQuery, insertParams);
