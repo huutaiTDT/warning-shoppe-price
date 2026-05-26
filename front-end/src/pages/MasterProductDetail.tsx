@@ -1,5 +1,6 @@
 /** @format */
 
+import { formatPrice } from "@/lib/utils";
 import { brandsAPI, masterProductsAPI } from "@/services/api";
 import { ShopFilled } from "@ant-design/icons";
 import {
@@ -18,7 +19,7 @@ import {
   Statistic,
   Tag,
   theme,
-  Typography
+  Typography,
 } from "antd";
 import {
   AlertTriangle,
@@ -28,7 +29,7 @@ import {
   Package,
   ShieldAlert,
   Store,
-  TrendingDown
+  TrendingDown,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -107,16 +108,22 @@ export default function MasterProductDetail() {
 
   if (loading) {
     return (
-      <div className='min-h-screen p-6' style={{ background: token.colorBgLayout }}>
+      <div
+        className='min-h-screen p-6'
+        style={{ background: token.colorBgLayout }}>
         <Skeleton active avatar paragraph={{ rows: 2 }} className='mb-8' />
         <Row gutter={[16, 16]}>
           <Col xs={24} xl={16}>
-            <Card bordered={false} style={{ borderRadius: token.borderRadiusLG }}>
+            <Card
+              bordered={false}
+              style={{ borderRadius: token.borderRadiusLG }}>
               <Skeleton active paragraph={{ rows: 6 }} />
             </Card>
           </Col>
           <Col xs={24} xl={8}>
-            <Card bordered={false} style={{ borderRadius: token.borderRadiusLG }}>
+            <Card
+              bordered={false}
+              style={{ borderRadius: token.borderRadiusLG }}>
               <Skeleton active paragraph={{ rows: 4 }} />
             </Card>
           </Col>
@@ -126,7 +133,9 @@ export default function MasterProductDetail() {
           <Row gutter={[16, 16]}>
             {[1, 2, 3].map((i) => (
               <Col xs={24} md={12} xl={8} key={i}>
-                <Card bordered={false} style={{ borderRadius: token.borderRadiusLG }}>
+                <Card
+                  bordered={false}
+                  style={{ borderRadius: token.borderRadiusLG }}>
                   <Skeleton active paragraph={{ rows: 4 }} />
                 </Card>
               </Col>
@@ -154,16 +163,14 @@ export default function MasterProductDetail() {
       className='min-h-screen overflow-x-hidden'
       style={{
         background: token.colorBgLayout,
-      }}
-    >
+      }}>
       {/* HEADER */}
       <Flex justify='space-between' align='center' className='mb-6'>
         <Space size='middle'>
           <Button
             icon={<ArrowLeft size={16} />}
             onClick={() => navigate(-1)}
-            className='border-none shadow-sm hover:!bg-white/10'
-          >
+            className='border-none shadow-sm hover:!bg-white/10'>
             Quay lại
           </Button>
 
@@ -176,7 +183,7 @@ export default function MasterProductDetail() {
       </Flex>
 
       {/* TOP OVERVIEW */}
-      <Row >
+      <Row>
         <Col xs={24} xl={16}>
           <Card
             bordered={false}
@@ -184,8 +191,7 @@ export default function MasterProductDetail() {
               borderRadius: token.borderRadiusLG,
               boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
               background: `linear-gradient(135deg, ${token.colorBgContainer} 0%, ${token.colorBgLayout} 100%)`,
-            }}
-          >
+            }}>
             <Space direction='vertical' size={20} className='w-full'>
               <div>
                 <Flex align='center' gap={12} wrap='wrap'>
@@ -205,14 +211,12 @@ export default function MasterProductDetail() {
                     </Title>
 
                     <Space wrap>
-                      {brand && (
-                        <Tag color='processing'>{brand.name}</Tag>
-                      )}
+                      {brand && <Tag color='processing'>{brand.name}</Tag>}
 
                       <Tag color={product.is_active ? "success" : "error"}>
-                        {product.is_active
-                          ? "Đang hoạt động"
-                          : "Ngừng hoạt động"}
+                        {product.is_active ?
+                          "Đang hoạt động"
+                        : "Ngừng hoạt động"}
                       </Tag>
 
                       {product.is_warning && (
@@ -233,13 +237,9 @@ export default function MasterProductDetail() {
                   <Text strong>Models</Text>
 
                   <div className='mt-3 flex flex-wrap gap-2'>
-                    {product.models?.length ? (
-                      product.models.map((m) => (
-                        <Tag key={m}>{m}</Tag>
-                      ))
-                    ) : (
-                      <Text type='secondary'>Không có models</Text>
-                    )}
+                    {product.models?.length ?
+                      product.models.map((m) => <Tag key={m}>{m}</Tag>)
+                    : <Text type='secondary'>Không có models</Text>}
                   </div>
                 </Col>
 
@@ -247,15 +247,13 @@ export default function MasterProductDetail() {
                   <Text strong>Variants</Text>
 
                   <div className='mt-3 flex flex-wrap gap-2'>
-                    {product.variants?.length ? (
+                    {product.variants?.length ?
                       product.variants.map((v) => (
                         <Tag color='purple' key={v}>
                           {v}
                         </Tag>
                       ))
-                    ) : (
-                      <Text type='secondary'>Không có variants</Text>
-                    )}
+                    : <Text type='secondary'>Không có variants</Text>}
                   </div>
                 </Col>
               </Row>
@@ -265,28 +263,24 @@ export default function MasterProductDetail() {
 
         {/* RIGHT */}
         <Col xs={24} xl={8}>
-          <Space
-            direction='vertical'
-            size={16}
-            className='w-full'
-          >
+          <Space direction='vertical' size={16} className='w-full'>
             <Card
               bordered={false}
               style={{
                 borderRadius: token.borderRadiusLG,
                 boxShadow: token.boxShadowTertiary,
-              }}
-            >
-              <Statistic
-                title='Giá niêm yết'
-                value={product.listed_price}
-                precision={0}
-                prefix='₫'
-                valueStyle={{
-                  color: token.colorSuccess,
-                  fontWeight: 700,
-                }}
-              />
+              }}>
+              <div>
+                Giá niêm yết :{" "}
+                <h1
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 700,
+                    color: token.colorError,
+                  }}>
+                  {formatPrice(product.listed_price)}
+                </h1>
+              </div>
 
               <Divider />
 
@@ -297,9 +291,9 @@ export default function MasterProductDetail() {
                     value={warnings.length}
                     valueStyle={{
                       color:
-                        warnings.length > 0
-                          ? token.colorError
-                          : token.colorSuccess,
+                        warnings.length > 0 ?
+                          token.colorError
+                        : token.colorSuccess,
                     }}
                   />
                 </Col>
@@ -311,9 +305,9 @@ export default function MasterProductDetail() {
                     suffix='%'
                     valueStyle={{
                       color:
-                        violationRate > 0
-                          ? token.colorWarning
-                          : token.colorSuccess,
+                        violationRate > 0 ?
+                          token.colorWarning
+                        : token.colorSuccess,
                     }}
                   />
                 </Col>
@@ -351,9 +345,8 @@ export default function MasterProductDetail() {
           align='center'
           className='mb-4'
           style={{
-            padding: 24
-          }}
-        >
+            padding: 24,
+          }}>
           <div>
             <Title level={4} style={{ marginBottom: 0 }}>
               Danh sách shop vi phạm
@@ -370,32 +363,29 @@ export default function MasterProductDetail() {
               paddingInline: 14,
               paddingBlock: 6,
               fontSize: 14,
-            }}
-          >
+            }}>
             {warnings.length} shop vi phạm
           </Tag>
         </Flex>
 
-        {warnings.length === 0 ? (
+        {warnings.length === 0 ?
           <Card
             bordered={false}
             style={{
               borderRadius: token.borderRadiusLG,
-            }}
-          >
+            }}>
             <Empty description='Không có shop vi phạm giá' />
           </Card>
-        ) : (
-            <Row gutter={[16, 16]} style={{
-            padding: '0 24px'
-          }}>
+        : <Row
+            gutter={[16, 16]}
+            style={{
+              padding: "0 24px",
+            }}>
             {warnings.map((w) => {
               const diff = w.listed_price - w.price_min;
 
               const percent =
-                w.listed_price > 0
-                  ? (diff / w.listed_price) * 100
-                  : 0;
+                w.listed_price > 0 ? (diff / w.listed_price) * 100 : 0;
 
               return (
                 <Col xs={24} md={12} xl={8} key={w.shop_product_id}>
@@ -417,14 +407,10 @@ export default function MasterProductDetail() {
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.borderColor = token.colorBorderSecondary;
-                    }}
-                  >
-                    <Space
-                      direction='vertical'
-                      size={18}
-                      className='w-full'
-                    >
+                      e.currentTarget.style.borderColor =
+                        token.colorBorderSecondary;
+                    }}>
+                    <Space direction='vertical' size={18} className='w-full'>
                       {/* SHOP */}
                       <Flex justify='space-between' align='start'>
                         <Space align='start'>
@@ -442,16 +428,12 @@ export default function MasterProductDetail() {
                             </Text>
 
                             <div>
-                              <Text type='secondary'>
-                                ID: {w.shop_id}
-                              </Text>
+                              <Text type='secondary'>ID: {w.shop_id}</Text>
                             </div>
                           </div>
                         </Space>
 
-                        <Tag color='error'>
-                          -{percent.toFixed(1)}%
-                        </Tag>
+                        <Tag color='error'>-{percent.toFixed(1)}%</Tag>
                       </Flex>
 
                       {/* PRODUCT */}
@@ -462,8 +444,7 @@ export default function MasterProductDetail() {
                             marginBottom: 0,
                             fontWeight: 600,
                             minHeight: 44,
-                          }}
-                        >
+                          }}>
                           {w.shop_product_name}
                         </Paragraph>
                       </div>
@@ -476,19 +457,15 @@ export default function MasterProductDetail() {
                             bordered={false}
                             style={{
                               background: token.colorErrorBg,
-                            }}
-                          >
-                            <Text type='secondary'>
-                              Giá thấp nhất
-                            </Text>
+                            }}>
+                            <Text type='secondary'>Giá thấp nhất</Text>
 
                             <div
                               className='mt-1 font-bold text-lg'
                               style={{
                                 color: token.colorError,
-                              }}
-                            >
-                              ₫{w.price_min?.toLocaleString()}
+                              }}>
+                              {formatPrice(w?.price_min)}
                             </div>
                           </Card>
                         </Col>
@@ -499,42 +476,35 @@ export default function MasterProductDetail() {
                             bordered={false}
                             style={{
                               background: token.colorWarningBg,
-                            }}
-                          >
-                            <Text type='secondary'>
-                              Chênh lệch
-                            </Text>
+                            }}>
+                            <Text type='secondary'>Chênh lệch</Text>
 
                             <div
                               className='mt-1 font-bold text-lg'
                               style={{
                                 color: token.colorWarning,
-                              }}
-                            >
-                              -₫{diff.toLocaleString()}
+                              }}>
+                              -{formatPrice(diff)} ({percent.toFixed(1)}%)
                             </div>
                           </Card>
                         </Col>
-
                       </Row>
 
                       {/* ACTIONS */}
                       <Flex gap={10}>
-                         <Button
-                            type='default'
-                            icon={<ShopFilled size={14} />}
-                            href={'/dashboard/shop-product/' + w.shop_product_id}
-                          >
-                            Xem chi tiết SP
-                          </Button>
+                        <Button
+                          type='default'
+                          icon={<ShopFilled size={14} />}
+                          href={"/dashboard/shop-product/" + w.shop_product_id}>
+                          Xem chi tiết SP
+                        </Button>
                         {w.external_link && (
                           <Button
                             type='primary'
                             icon={<ExternalLink size={14} />}
                             href={w.external_link}
                             target='_blank'
-                            block
-                          >
+                            block>
                             Xem Trên SHOPPE
                           </Button>
                         )}
@@ -552,31 +522,24 @@ export default function MasterProductDetail() {
                       <Flex justify='space-between'>
                         <Space size={4}>
                           <BadgeDollarSign size={14} />
-                          <Text type='secondary'>
-                            Giá niêm yết:
-                          </Text>
+                          <Text type='secondary'>Giá niêm yết:</Text>
                         </Space>
 
-                        <Text strong>
-                          ₫{w.listed_price?.toLocaleString()}
-                        </Text>
+                        <Text strong>{formatPrice(w?.listed_price)}</Text>
                       </Flex>
 
                       <Flex justify='space-between'>
                         <Space size={4}>
                           <TrendingDown size={14} />
-                          <Text type='secondary'>
-                            Giá hiện tại:
-                          </Text>
+                          <Text type='secondary'>Giá hiện tại:</Text>
                         </Space>
 
                         <Text
                           strong
                           style={{
                             color: token.colorError,
-                          }}
-                        >
-                          ₫{w.price?.toLocaleString()}
+                          }}>
+                          {formatPrice(w.price)}
                         </Text>
                       </Flex>
                     </Space>
@@ -585,7 +548,7 @@ export default function MasterProductDetail() {
               );
             })}
           </Row>
-        )}
+        }
       </div>
     </div>
   );

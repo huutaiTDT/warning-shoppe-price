@@ -1,6 +1,7 @@
 /** @format */
 
 import Pagination from "@/components/pagination";
+import { formatPrice } from "@/lib/utils";
 import { brandsAPI, productsAPI, shopsAPI } from "@/services/api";
 import {
   Button,
@@ -382,7 +383,7 @@ export default function ShopDetail() {
       key: "price_min",
       width: 120,
       align: "right" as const,
-      render: (price: number) => price?.toLocaleString("vi-VN") || "-",
+      render: (price: number) => formatPrice(price),
     },
     {
       title: "Giá Max",
@@ -390,7 +391,7 @@ export default function ShopDetail() {
       key: "price_max",
       width: 120,
       align: "right" as const,
-      render: (price: number) => price?.toLocaleString("vi-VN") || "-",
+      render: (price: number) => formatPrice(price),
     },
     {
       title: "Thao tác",
@@ -804,8 +805,8 @@ export default function ShopDetail() {
                         </div>
                         {record.priceMin && record.priceMax && (
                           <div className='text-xs text-gray-500 mt-1'>
-                            Range: ₫{record.priceMin?.toLocaleString?.()} - ₫
-                            {record.priceMax?.toLocaleString?.()}
+                            Range: {formatPrice(record.priceMin)} -
+                            {formatPrice(record.priceMax)}
                           </div>
                         )}
                       </div>

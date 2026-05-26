@@ -1,5 +1,6 @@
 /** @format */
 
+import { formatPrice } from "@/lib/utils";
 import { Badge, Popover, Space, Table } from "antd";
 import { AlertCircle } from "lucide-react";
 
@@ -43,13 +44,13 @@ export default function WarningPopover({
       title: "Giá Min",
       dataIndex: "price_min",
       key: "price_min",
-      render: (price: number) => `₫${price?.toLocaleString()}`,
+      render: (price: number) => `₫${formatPrice(price)}`,
     },
     {
       title: "Giá Max",
       dataIndex: "price_max",
       key: "price_max",
-      render: (price: number) => `₫${price?.toLocaleString()}`,
+      render: (price: number) => `${formatPrice(price)}`,
     },
     {
       title: "Shop",

@@ -1,5 +1,6 @@
 /** @format */
 
+import { formatPrice } from "@/lib/utils";
 import { productsAPI } from "@/services/api";
 import { AreaChart } from "@tremor/react";
 import {
@@ -245,9 +246,7 @@ export default function ShopProductDetailPage() {
                       "amber",
                       "rose",
                     ]}
-                    valueFormatter={(number: number) =>
-                      `₫${number.toLocaleString()}`
-                    }
+                    valueFormatter={(number: number) => formatPrice(number)}
                     yAxisWidth={80}
                     showAnimation={true}
                     curveType='monotone'
@@ -316,18 +315,18 @@ export default function ShopProductDetailPage() {
                   {
                     title: "Giá thấp nhất",
                     dataIndex: "priceMin",
-                    render: (v) => <Text strong>₫{v.toLocaleString()}</Text>,
+                    render: (v) => <Text strong>{formatPrice(v)}</Text>,
                   },
                   {
                     title: "Giá cao nhất",
                     dataIndex: "priceMax",
-                    render: (v) => <Text strong>₫{v.toLocaleString()}</Text>,
+                    render: (v) => <Text strong>{formatPrice(v)}</Text>,
                   },
                   {
                     title: "Trung bình",
                     dataIndex: "shopeeAvgPrice",
                     render: (v) => (
-                      <Text type='secondary'>₫{v.toLocaleString()}</Text>
+                      <Text type='secondary'>{formatPrice(v)}</Text>
                     ),
                   },
                 ]}
@@ -364,7 +363,7 @@ export default function ShopProductDetailPage() {
                         token.colorError
                       : token.colorSuccess,
                   }}>
-                  ₫{product.shopeeAvgPrice?.toLocaleString()}
+                  {formatPrice(product.shopeeAvgPrice)}₫
                 </Title>
                 {product.priceTrend === "down" ?
                   <Tag color='error' icon={<TrendingDown size={12} />}>
@@ -382,9 +381,7 @@ export default function ShopProductDetailPage() {
               <div className='space-y-4'>
                 <Flex justify='space-between'>
                   <Text type='secondary'>Giá niêm yết:</Text>
-                  <Text strong>
-                    ₫{product.priceOriginal?.toLocaleString() || 0}
-                  </Text>
+                  <Text strong>{formatPrice(product.priceOriginal)}₫</Text>
                 </Flex>
                 <Flex justify='space-between'>
                   <Text type='secondary'>Chênh lệch:</Text>

@@ -1,5 +1,6 @@
 /** @format */
 import Pagination from "@/components/pagination";
+import { formatPrice } from "@/lib/utils";
 import { brandsAPI, masterProductsAPI } from "@/services/api";
 import {
   BarChartOutlined,
@@ -71,7 +72,7 @@ interface Brand {
 }
 
 export default function MasterProductsPage() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const [items, setItems] = useState<Product[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(false);
@@ -327,7 +328,7 @@ export default function MasterProductsPage() {
     {
       title: "Giá",
       dataIndex: "listed_price",
-      render: (v: number) => `₫${v?.toLocaleString()}`,
+      render: (v: number) => `${formatPrice(v)}`,
     },
     {
       title: "Cảnh báo",
@@ -350,7 +351,7 @@ export default function MasterProductsPage() {
                 <div className='mb-3 pb-2 border-b'>
                   <div className='text-sm font-semibold text-red-600'>
                     {warnings.length} sản phẩm có giá thấp hơn ₫
-                    {record.listed_price?.toLocaleString()}
+                    {formatPrice(record.listed_price)}
                   </div>
                   <div className='text-xs text-gray-500 mt-1'>
                     Các cửa hàng đang bán dưới giá niêm yết
@@ -373,12 +374,11 @@ export default function MasterProductsPage() {
                       }}>
                       <div className='font-medium'>{w.shop_product_name}</div>
                       <div className='text-xs text-gray-600 mt-1'>
-                        Giá: ₫{w.price_min?.toLocaleString()} - ₫
-                        {w.price_max?.toLocaleString()}
+                        Giá: {formatPrice(w.price_min)}₫ -
+                        {formatPrice(w.price_max)}
                       </div>
                       <div className='text-xs text-red-600 font-semibold mt-1'>
-                        Chênh lệch: -₫
-                        {(w.listed_price - w.price_min)?.toLocaleString()}
+                        Chênh lệch: -{formatPrice(w.listed_price - w.price_min)}
                       </div>
                       {w.shopInfo && (
                         <div className='text-xs text-blue-600 mt-2 font-medium'>
@@ -526,7 +526,7 @@ export default function MasterProductsPage() {
         className='cursor-pointer'
         onRow={(record) => ({
           onClick: () => {
-            navigate(`/dashboard/master-products/${record.id}`)
+            navigate(`/dashboard/master-products/${record.id}`);
           },
         })}
         columns={columns}
@@ -821,7 +821,7 @@ export default function MasterProductsPage() {
                   <div className='mt-2 text-sm text-gray-400'>Giá niêm yết</div>
 
                   <div className='text-lg font-bold text-blue-400'>
-                    ₫{listed.toLocaleString()}
+                    {formatPrice(listed)}
                   </div>
                 </div>
 
