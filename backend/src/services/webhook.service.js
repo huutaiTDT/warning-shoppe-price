@@ -25,6 +25,20 @@ async function scanPrice(productInsertHistoryPrice) {
          RETURNING *`,
         flatValues,
       );
+      // cập nhật giá min max vào shop_products
+      for (const item of productInsertHistoryPrice) {
+        await db.query(
+          `UPDATE shop_products 
+           SET price_min = $1, price_max = $2 , price = $3
+           WHERE id = $4`,
+          [
+            item.price_min,
+            item.price_max,
+            item.price_min,
+            item.shop_product_id,
+          ],
+        );
+      }
 
       console.log(
         `Scanned price for ${productInsertHistoryPrice.length} products`,

@@ -30,7 +30,7 @@ import {
   Star,
   Store,
   TrendingDown,
-  TrendingUp
+  TrendingUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -88,36 +88,38 @@ export default function ShopProductDetailPage() {
   }
 
   // Prepare chart data
-  const chartData = [...history]
-    .reverse()
-    .map((h) => ({
-      date: format(new Date(h.crawledAt), "dd/MM HH:mm"),
-      "Giá trung bình": h.shopeeAvgPrice,
-      "Giá thấp nhất": h.priceMin,
-      "Giá cao nhất": h.priceMax,
-      "Giá niêm yết": product.priceOriginal,
-    }));
+  const chartData = [...history].reverse().map((h) => ({
+    date: format(new Date(h.crawledAt), "dd/MM HH:mm"),
+    "Giá trung bình": h.shopeeAvgPrice,
+    "Giá thấp nhất": h.priceMin,
+    "Giá cao nhất": h.priceMax,
+    "Giá niêm yết": product.priceOriginal,
+  }));
+  console.log("Chart Data:", product);
 
   return (
-    <div className='min-h-screen p-6' style={{ background: token.colorBgLayout }}>
+    <div
+      className='min-h-screen p-6'
+      style={{ background: token.colorBgLayout }}>
       {/* HEADER */}
       <Flex justify='space-between' align='center' className='mb-6'>
         <Space size='middle'>
           <Button
             icon={<ArrowLeft size={16} />}
             onClick={() => navigate(-1)}
-            className='border-none shadow-sm'
-          >
+            className='border-none shadow-sm'>
             Quay lại
           </Button>
           <div>
             <Title level={3} style={{ marginBottom: 0 }}>
               Chi tiết sản phẩm Shop
             </Title>
-            <Text type='secondary'>Thông tin chi tiết từ sàn thương mại điện tử</Text>
+            <Text type='secondary'>
+              Thông tin chi tiết từ sàn thương mại điện tử
+            </Text>
           </div>
         </Space>
-        
+
         <Space>
           {product.url && (
             <Button
@@ -125,8 +127,7 @@ export default function ShopProductDetailPage() {
               icon={<ExternalLink size={16} />}
               href={product.url}
               target='_blank'
-              className='bg-blue-600 border-none'
-            >
+              className='bg-blue-600 border-none'>
               Xem trên sàn
             </Button>
           )}
@@ -140,8 +141,10 @@ export default function ShopProductDetailPage() {
             {/* Product Overview Card */}
             <Card
               bordered={false}
-              style={{ borderRadius: token.borderRadiusLG, boxShadow: token.boxShadowTertiary }}
-            >
+              style={{
+                borderRadius: token.borderRadiusLG,
+                boxShadow: token.boxShadowTertiary,
+              }}>
               <Row gutter={[24, 24]}>
                 <Col xs={24} md={8}>
                   <Image
@@ -154,13 +157,21 @@ export default function ShopProductDetailPage() {
                 <Col xs={24} md={16}>
                   <Space direction='vertical' size={12} className='w-full'>
                     <div>
-                      <Tag color='blue' className='mb-2'>{product.shopPlatform || "SHOPEE"}</Tag>
-                      <Title level={4} style={{ marginTop: 0 }}>{product.name}</Title>
+                      <Tag color='blue' className='mb-2'>
+                        {product.shopPlatform || "SHOPEE"}
+                      </Tag>
+                      <Title level={4} style={{ marginTop: 0 }}>
+                        {product.name}
+                      </Title>
                     </div>
 
                     <div className='flex flex-wrap gap-4'>
                       <Space>
-                        <Star className='text-yellow-500' size={16} fill='currentColor' />
+                        <Star
+                          className='text-yellow-500'
+                          size={16}
+                          fill='currentColor'
+                        />
                         <Text strong>{product.rating || 0}</Text>
                         <Text type='secondary'>Đánh giá</Text>
                       </Space>
@@ -173,18 +184,28 @@ export default function ShopProductDetailPage() {
 
                     <Divider style={{ margin: "8px 0" }} />
 
-                    <Descriptions  column={2}>
-                      <Descriptions.Item label='Thương hiệu'>{product.brand || "-"}</Descriptions.Item>
-                      <Descriptions.Item label='Mã sản phẩm'>{product.external_id || "-"}</Descriptions.Item>
+                    <Descriptions column={2}>
+                      <Descriptions.Item label='Thương hiệu'>
+                        {product.brand || "-"}
+                      </Descriptions.Item>
+                      <Descriptions.Item label='Mã sản phẩm'>
+                        {product.external_id || "-"}
+                      </Descriptions.Item>
                       <Descriptions.Item label='Models' span={2}>
-                        {product.models?.length ? 
-                          product.models.map((m: string) => <Tag key={m} >{m}</Tag>) 
-                          : "-"}
+                        {product.models?.length ?
+                          product.models.map((m: string) => (
+                            <Tag key={m}>{m}</Tag>
+                          ))
+                        : "-"}
                       </Descriptions.Item>
                       <Descriptions.Item label='Variants' span={2}>
-                        {product.variants?.length ? 
-                          product.variants.map((v: string) => <Tag key={v} color='purple' >{v}</Tag>) 
-                          : "-"}
+                        {product.variants?.length ?
+                          product.variants.map((v: string) => (
+                            <Tag key={v} color='purple'>
+                              {v}
+                            </Tag>
+                          ))
+                        : "-"}
                       </Descriptions.Item>
                     </Descriptions>
                   </Space>
@@ -195,27 +216,38 @@ export default function ShopProductDetailPage() {
             {/* Price History Chart */}
             <Card
               bordered={false}
-              style={{ borderRadius: token.borderRadiusLG, boxShadow: token.boxShadowTertiary }}
-            >
+              style={{
+                borderRadius: token.borderRadiusLG,
+                boxShadow: token.boxShadowTertiary,
+              }}>
               <div className='flex items-center gap-2 mb-6'>
                 <Clock className='text-blue-500' size={20} />
-                <Title level={4} style={{ margin: 0 }}>Lịch sử biến động giá</Title>
+                <Title level={4} style={{ margin: 0 }}>
+                  Lịch sử biến động giá
+                </Title>
               </div>
-              
-              {chartData.length > 0 ? (
+
+              {chartData.length > 0 ?
                 <div className='h-[350px] mt-4'>
                   <AreaChart
                     className='h-full'
                     data={chartData}
                     index='date'
-                    categories={["Giá trung bình", "Giá thấp nhất", "Giá cao nhất", "Giá niêm yết"]}
+                    categories={[
+                      "Giá trung bình",
+                      "Giá thấp nhất",
+                      "Giá cao nhất",
+                      "Giá niêm yết",
+                    ]}
                     colors={[
                       "blue", // Using string names as Tremor primarily supports Tailwind-based names
                       "emerald",
                       "amber",
-                      "rose"
+                      "rose",
                     ]}
-                    valueFormatter={(number: number) => `₫${number.toLocaleString()}`}
+                    valueFormatter={(number: number) =>
+                      `₫${number.toLocaleString()}`
+                    }
                     yAxisWidth={80}
                     showAnimation={true}
                     curveType='monotone'
@@ -223,19 +255,33 @@ export default function ShopProductDetailPage() {
                     customTooltip={({ payload, active, label }) => {
                       if (!active || !payload) return null;
                       return (
-                        <div className="rounded-lg border bg-[#1f2937] p-3 shadow-xl border-gray-700">
-                          <p className="text-sm font-bold text-white mb-2">{label}</p>
-                          <div className="space-y-1">
+                        <div className='rounded-lg border bg-[#1f2937] p-3 shadow-xl border-gray-700'>
+                          <p className='text-sm font-bold text-white mb-2'>
+                            {label}
+                          </p>
+                          <div className='space-y-1'>
                             {payload.map((category: any, index: number) => (
-                              <div key={index} className="flex items-center justify-between gap-8">
-                                <div className="flex items-center gap-2">
-                                  <div 
-                                    className="h-2 w-2 rounded-full" 
-                                    style={{ background: category.color === 'blue' ? token.blue5 : category.color === 'emerald' ? token.colorSuccess : category.color === 'amber' ? token.colorWarning : token.colorError }} 
+                              <div
+                                key={index}
+                                className='flex items-center justify-between gap-8'>
+                                <div className='flex items-center gap-2'>
+                                  <div
+                                    className='h-2 w-2 rounded-full'
+                                    style={{
+                                      background:
+                                        category.color === "blue" ? token.blue5
+                                        : category.color === "emerald" ?
+                                          token.colorSuccess
+                                        : category.color === "amber" ?
+                                          token.colorWarning
+                                        : token.colorError,
+                                    }}
                                   />
-                                  <span className="text-xs text-gray-400">{category.name}</span>
+                                  <span className='text-xs text-gray-400'>
+                                    {category.name}
+                                  </span>
                                 </div>
-                                <span className="text-xs font-bold text-white">
+                                <span className='text-xs font-bold text-white'>
                                   ₫{category.value.toLocaleString()}
                                 </span>
                               </div>
@@ -246,26 +292,26 @@ export default function ShopProductDetailPage() {
                     }}
                   />
                 </div>
-              ) : (
-                <Empty description='Chưa có dữ liệu lịch sử giá' />
-              )}
+              : <Empty description='Chưa có dữ liệu lịch sử giá' />}
             </Card>
 
             {/* Price Log Table */}
             <Card
               title='Nhật ký cập nhật'
               bordered={false}
-              style={{ borderRadius: token.borderRadiusLG, boxShadow: token.boxShadowTertiary }}
-            >
+              style={{
+                borderRadius: token.borderRadiusLG,
+                boxShadow: token.boxShadowTertiary,
+              }}>
               <Table
-                
                 dataSource={history}
                 rowKey='id'
                 columns={[
                   {
                     title: "Thời gian",
                     dataIndex: "crawledAt",
-                    render: (date) => format(new Date(date), "dd/MM/yyyy HH:mm"),
+                    render: (date) =>
+                      format(new Date(date), "dd/MM/yyyy HH:mm"),
                   },
                   {
                     title: "Giá thấp nhất",
@@ -280,7 +326,9 @@ export default function ShopProductDetailPage() {
                   {
                     title: "Trung bình",
                     dataIndex: "shopeeAvgPrice",
-                    render: (v) => <Text type='secondary'>₫{v.toLocaleString()}</Text>,
+                    render: (v) => (
+                      <Text type='secondary'>₫{v.toLocaleString()}</Text>
+                    ),
                   },
                 ]}
                 pagination={{ pageSize: 5 }}
@@ -295,23 +343,38 @@ export default function ShopProductDetailPage() {
             {/* Price Summary Card */}
             <Card
               bordered={false}
-              style={{ 
-                borderRadius: token.borderRadiusLG, 
+              style={{
+                borderRadius: token.borderRadiusLG,
                 boxShadow: token.boxShadowTertiary,
-                background: product.isUnderOriginal ? "rgba(239, 68, 68, 0.05)" : "inherit"
-              }}
-            >
-              <div className='text-gray-400 text-xs uppercase mb-1'>Giá hiện tại (Trung bình)</div>
+                background:
+                  product.isUnderOriginal ?
+                    "rgba(239, 68, 68, 0.05)"
+                  : "inherit",
+              }}>
+              <div className='text-gray-400 text-xs uppercase mb-1'>
+                Giá hiện tại{" "}
+              </div>
               <div className='flex items-baseline gap-2'>
-                <Title level={2} style={{ margin: 0, color: product.isUnderOriginal ? token.colorError : token.colorSuccess }}>
+                <Title
+                  level={2}
+                  style={{
+                    margin: 0,
+                    color:
+                      product.isUnderOriginal ?
+                        token.colorError
+                      : token.colorSuccess,
+                  }}>
                   ₫{product.shopeeAvgPrice?.toLocaleString()}
                 </Title>
-                {product.priceTrend === "down" ? 
-                  <Tag color='error' icon={<TrendingDown size={12} />}>Giảm</Tag> 
-                  : product.priceTrend === "up" ? 
-                  <Tag color='warning' icon={<TrendingUp size={12} />}>Tăng</Tag>
-                  : null
-                }
+                {product.priceTrend === "down" ?
+                  <Tag color='error' icon={<TrendingDown size={12} />}>
+                    Giảm
+                  </Tag>
+                : product.priceTrend === "up" ?
+                  <Tag color='warning' icon={<TrendingUp size={12} />}>
+                    Tăng
+                  </Tag>
+                : null}
               </div>
 
               <Divider style={{ margin: "16px 0" }} />
@@ -319,12 +382,22 @@ export default function ShopProductDetailPage() {
               <div className='space-y-4'>
                 <Flex justify='space-between'>
                   <Text type='secondary'>Giá niêm yết:</Text>
-                  <Text strong>₫{product.priceOriginal?.toLocaleString() || 0}</Text>
+                  <Text strong>
+                    ₫{product.priceOriginal?.toLocaleString() || 0}
+                  </Text>
                 </Flex>
                 <Flex justify='space-between'>
                   <Text type='secondary'>Chênh lệch:</Text>
-                  <Text strong style={{ color: product.priceDelta < 0 ? token.colorError : token.colorSuccess }}>
-                    {product.priceDelta < 0 ? "-" : "+"}₫{Math.abs(product.priceDelta).toLocaleString()}
+                  <Text
+                    strong
+                    style={{
+                      color:
+                        product.priceDelta < 0 ?
+                          token.colorError
+                        : token.colorSuccess,
+                    }}>
+                    {product.priceDelta < 0 ? "-" : "+"}₫
+                    {Math.abs(product.priceDelta).toLocaleString()}
                   </Text>
                 </Flex>
               </div>
@@ -343,31 +416,36 @@ export default function ShopProductDetailPage() {
             {/* Shop Info Card */}
             <Card
               bordered={false}
-              style={{ borderRadius: token.borderRadiusLG, boxShadow: token.boxShadowTertiary }}
-            >
+              style={{
+                borderRadius: token.borderRadiusLG,
+                boxShadow: token.boxShadowTertiary,
+              }}>
               <div className='flex items-center gap-2 mb-4'>
                 <Store className='text-blue-500' size={20} />
-                <Title level={4} style={{ margin: 0 }}>Cửa hàng</Title>
+                <Title level={4} style={{ margin: 0 }}>
+                  Cửa hàng
+                </Title>
               </div>
-              
+
               <Space direction='vertical' className='w-full'>
                 <div>
                   <div className='text-xs text-gray-400'>Tên shop</div>
-                  <Text strong className='text-base'>{product.shopName || "N/A"}</Text>
+                  <Text strong className='text-base'>
+                    {product.shopName || "N/A"}
+                  </Text>
                 </div>
                 <div>
                   <div className='text-xs text-gray-400'>Mã shop</div>
                   <Tag>{product.shopCode || product.shopId}</Tag>
                 </div>
-                
+
                 <Divider style={{ margin: "8px 0" }} />
-                
-                <Button 
-                  block 
+
+                <Button
+                  block
                   icon={<ExternalLink size={14} />}
                   href={product.url}
-                  target='_blank'
-                >
+                  target='_blank'>
                   Truy cập cửa hàng
                 </Button>
               </Space>
@@ -375,10 +453,16 @@ export default function ShopProductDetailPage() {
 
             {/* Raw Data Card (Optional) */}
             <Card
-              title={<Space><Info size={16} /> <Text>Dữ liệu thô</Text></Space>}
-                          bordered={false}
-              style={{ borderRadius: token.borderRadiusLG, boxShadow: token.boxShadowTertiary }}
-            >
+              title={
+                <Space>
+                  <Info size={16} /> <Text>Dữ liệu thô</Text>
+                </Space>
+              }
+              bordered={false}
+              style={{
+                borderRadius: token.borderRadiusLG,
+                boxShadow: token.boxShadowTertiary,
+              }}>
               <pre className='text-[10px] overflow-auto max-h-[200px] bg-gray-900 p-2 rounded text-emerald-400'>
                 {JSON.stringify(product, null, 2)}
               </pre>
