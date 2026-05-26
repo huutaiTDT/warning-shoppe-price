@@ -441,7 +441,7 @@ export default function ShopProductDetailPage() {
                 <Button
                   block
                   icon={<ExternalLink size={14} />}
-                  href={product.url}
+                  href={product?.external_link || product.url}
                   target='_blank'>
                   Truy cập cửa hàng
                 </Button>
