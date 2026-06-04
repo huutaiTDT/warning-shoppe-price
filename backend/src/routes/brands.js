@@ -212,7 +212,7 @@ router.put("/:id", roleGuard(["ADMIN"]), async (req, res) => {
     }
 
     const { rows } = await db.query(
-      "UPDATE brands SET name = $1, code = $2, description = $3, is_active = $4, updated_at = NOW() WHERE id = $5 RETURNING *",
+      "UPDATE brands SET name = $1, code = $2, description = $3, is_active = $4 WHERE id = $5 RETURNING *",
       [
         name,
         code || null,
