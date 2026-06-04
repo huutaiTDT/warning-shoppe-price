@@ -1,7 +1,7 @@
 /** @format */
 
 import Pagination from "@/components/pagination";
-import { crawlHistoryAPI, shopsAPI } from "@/services/api";
+import { shopsAPI } from "@/services/api";
 import { Button, Input, Popconfirm, Space, Table, message } from "antd";
 import { Edit, Eye, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -48,22 +48,22 @@ export default function ShopsPage() {
     }
   };
 
-  const startFakeCrawlProgress = () => {
-    stopFakeCrawlProgress();
-    let value = 0;
+  // const startFakeCrawlProgress = () => {
+  //   stopFakeCrawlProgress();
+  //   let value = 0;
 
-    crawlFakeProgressRef.current = setInterval(() => {
-      value += Math.random() * 10;
-      setCrawlProgress((prev) => ({
-        ...prev,
-        percent: Math.min(90, Math.max(prev.percent, Math.round(value))),
-      }));
+  //   crawlFakeProgressRef.current = setInterval(() => {
+  //     value += Math.random() * 10;
+  //     setCrawlProgress((prev) => ({
+  //       ...prev,
+  //       percent: Math.min(90, Math.max(prev.percent, Math.round(value))),
+  //     }));
 
-      if (value >= 90) {
-        stopFakeCrawlProgress();
-      }
-    }, 250);
-  };
+  //     if (value >= 90) {
+  //       stopFakeCrawlProgress();
+  //     }
+  //   }, 250);
+  // };
 
   const fetchShops = async (page = 1, limit = 20) => {
     setLoading(true);
@@ -99,62 +99,62 @@ export default function ShopsPage() {
     }
   };
 
-  const handleCrawl = async (id: string, shopName: string) => {
-    try {
-      setCrawlProgress({
-        visible: true,
-        shopName,
-        status: "running",
-        percent: 0,
-        crawledCount: 0,
-        productCount: 0,
-        errorMessage: "",
-      });
-      startFakeCrawlProgress();
+  // const handleCrawl = async (id: string, shopName: string) => {
+  //   try {
+  //     setCrawlProgress({
+  //       visible: true,
+  //       shopName,
+  //       status: "running",
+  //       percent: 0,
+  //       crawledCount: 0,
+  //       productCount: 0,
+  //       errorMessage: "",
+  //     });
+  //     startFakeCrawlProgress();
 
-      const crawlRes = await shopsAPI.crawl(id);
-      stopFakeCrawlProgress();
+  //     const crawlRes = await shopsAPI.crawl(id);
+  //     stopFakeCrawlProgress();
 
-      let crawledCount = 0;
-      let productCount = 0;
+  //     let crawledCount = 0;
+  //     let productCount = 0;
 
-      if (crawlRes?.data?.crawlHistoryId) {
-        try {
-          const historyRes = await crawlHistoryAPI.get(
-            crawlRes.data.crawlHistoryId,
-          );
-          crawledCount = Number(historyRes?.data?.crawledCount || 0);
-          productCount = Number(historyRes?.data?.productCount || 0);
-        } catch {
-          // Ignore history fetch failure and keep fallback values.
-        }
-      }
+  //     if (crawlRes?.data?.crawlHistoryId) {
+  //       try {
+  //         const historyRes = await crawlHistoryAPI.get(
+  //           crawlRes.data.crawlHistoryId,
+  //         );
+  //         crawledCount = Number(historyRes?.data?.crawledCount || 0);
+  //         productCount = Number(historyRes?.data?.productCount || 0);
+  //       } catch {
+  //         // Ignore history fetch failure and keep fallback values.
+  //       }
+  //     }
 
-      setCrawlProgress((prev) => ({
-        ...prev,
-        status: "completed",
-        percent: 100,
-        crawledCount,
-        productCount,
-      }));
+  //     setCrawlProgress((prev) => ({
+  //       ...prev,
+  //       status: "completed",
+  //       percent: 100,
+  //       crawledCount,
+  //       productCount,
+  //     }));
 
-      message.success("Crawl thành công");
-      fetchShops(pagination.page, pagination.pageSize);
+  //     message.success("Crawl thành công");
+  //     fetchShops(pagination.page, pagination.pageSize);
 
-      setTimeout(() => {
-        setCrawlProgress((prev) => ({ ...prev, visible: false }));
-      }, 1800);
-    } catch (error) {
-      stopFakeCrawlProgress();
-      setCrawlProgress((prev) => ({
-        ...prev,
-        status: "failed",
-        percent: 100,
-        errorMessage: "Crawl thất bại",
-      }));
-      message.error("Lỗi quét");
-    }
-  };
+  //     setTimeout(() => {
+  //       setCrawlProgress((prev) => ({ ...prev, visible: false }));
+  //     }, 1800);
+  //   } catch (error) {
+  //     stopFakeCrawlProgress();
+  //     setCrawlProgress((prev) => ({
+  //       ...prev,
+  //       status: "failed",
+  //       percent: 100,
+  //       errorMessage: "Crawl thất bại",
+  //     }));
+  //     message.error("Lỗi quét");
+  //   }
+  // };
 
   const columns = [
     {
