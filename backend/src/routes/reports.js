@@ -17,13 +17,8 @@ const router = Router();
  */
 router.get("/price-fluctuations", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({
-        error: "Unauthorized",
-      });
-    }
+    const { userId, type } = requireAuthUserId(req, res);
+    if (!userId) return;
 
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
@@ -34,6 +29,11 @@ router.get("/price-fluctuations", async (req, res) => {
 
     const params = [];
     const whereClauses = [];
+
+    if (type !== "ADMIN") {
+      whereClauses.push(`sp.shop_id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $${params.length + 1})`);
+      params.push(userId);
+    }
 
     if (startDate) {
       whereClauses.push(`ph.crawled_at >= $${params.length + 1}`);
@@ -169,27 +169,38 @@ router.get("/price-fluctuations", async (req, res) => {
  */
 router.get("/monthly-summary", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({
-        error: "Unauthorized",
-      });
-    }
+    const { userId, type } = requireAuthUserId(req, res);
+    if (!userId) return;
 
     const year = parseInt(req.query.year) || new Date().getFullYear();
-
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
-
     const { shopId } = req.query;
 
     const params = [year, month];
-
     let shopFilter = "";
 
-    if (shopId) {
-      shopFilter = `AND sp.shop_id = $3`;
-      params.push(shopId);
+    if (type !== "ADMIN") {
+      if (shopId) {
+        // Verify shop is assigned to user
+        const { rows: mapping } = await db.query(
+          "SELECT 1 FROM user_shop_mappings WHERE user_id = $1 AND shop_id = $2 LIMIT 1",
+          [userId, shopId],
+        );
+        if (mapping.length === 0) {
+          return res.status(403).json({ error: "Forbidden: You do not have access to this shop" });
+        }
+        shopFilter = `AND sp.shop_id = $3`;
+        params.push(shopId);
+      } else {
+        // Only return summary for assigned shops
+        shopFilter = `AND sp.shop_id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $3)`;
+        params.push(userId);
+      }
+    } else {
+      if (shopId) {
+        shopFilter = `AND sp.shop_id = $3`;
+        params.push(shopId);
+      }
     }
 
     const query = `

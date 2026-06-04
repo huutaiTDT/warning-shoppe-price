@@ -85,7 +85,7 @@ router.post("/", roleGuard(["ADMIN"]), async (req, res) => {
     if (shopIds?.length > 0) {
       const values = shopIds.map((id) => `(${user.id}, ${id})`).join(", ");
       await db.query(
-        `INSERT INTO account_shop_assignments (user_id, shop_id) VALUES ${values}`,
+        `INSERT INTO user_shop_mappings (user_id, shop_id) VALUES ${values}`,
       );
     }
 
@@ -122,7 +122,7 @@ router.get("/:id", roleGuard(["ADMIN"]), async (req, res) => {
     let shops = [];
     if (user.type === "STAFF") {
       const { rows: assignments } = await db.query(
-        "SELECT shop_id FROM account_shop_assignments WHERE user_id = $1",
+        "SELECT shop_id FROM user_shop_mappings WHERE user_id = $1",
         [id],
       );
       shops = (assignments || []).map((a) => a.shop_id);
@@ -187,16 +187,13 @@ router.put("/:id", roleGuard(["ADMIN"]), async (req, res) => {
     // Update shop assignments if provided
     if (Array.isArray(shopIds)) {
       // Delete existing assignments
-      await db.query(
-        "DELETE FROM account_shop_assignments WHERE user_id = $1",
-        [id],
-      );
+      await db.query("DELETE FROM user_shop_mappings WHERE user_id = $1", [id]);
 
       // Create new assignments
       if (shopIds.length > 0) {
         const values = shopIds.map((shopId) => `(${id}, ${shopId})`).join(", ");
         await db.query(
-          `INSERT INTO account_shop_assignments (user_id, shop_id) VALUES ${values}`,
+          `INSERT INTO user_shop_mappings (user_id, shop_id) VALUES ${values}`,
         );
       }
     }
@@ -238,7 +235,7 @@ router.get("/shops", async (req, res) => {
     if (!auth) return;
 
     const { rows: data } = await db.query(
-      `SELECT s.* FROM account_shop_assignments asa JOIN shops s ON asa.shop_id = s.id WHERE asa.user_id = $1`,
+      `SELECT s.* FROM user_shop_mappings asa JOIN shops s ON asa.shop_id = s.id WHERE asa.user_id = $1`,
       [auth.userId],
     );
 

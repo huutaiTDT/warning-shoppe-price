@@ -1,6 +1,6 @@
 ==========================================
       REGISTERED API ROUTES
-   (Updated at 2026-06-04T03:53:52.630Z)
+   (Updated at 2026-06-04T04:16:41.527Z)
 ==========================================
 [DELETE] /accounts/?(?=/|$)/:id
 [DELETE] /accounts/?(?=/|$)/:id/brands/:brand_id
@@ -22,7 +22,6 @@
 [GET] /master-data/brand-permissions/?(?=/|$)/my-brands
 [GET] /master-data/brands/?(?=/|$)/
 [GET] /master-data/brands/?(?=/|$)/:id
-[GET] /master-data/brands/?(?=/|$)/select-box
 [GET] /master-data/brands/?(?=/|$)/select-box
 [GET] /master-data/guides/?(?=/|$)/
 [GET] /master-data/guides/?(?=/|$)/:id

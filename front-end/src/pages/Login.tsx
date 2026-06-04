@@ -1,7 +1,7 @@
 /** @format */
 
 import { useAuth } from "@/contexts/AuthContext";
-import { authAPI } from "@/services/api";
+import { authAPI, systemAPI } from "@/services/api";
 import { Alert, Button, Card, Form, Input, message } from "antd";
 import { LogIn, Package } from "lucide-react";
 import { useState } from "react";
@@ -13,7 +13,15 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form] = Form.useForm();
-
+  const handleReloadCache = async () => {
+    try {
+      await systemAPI.clearCache();
+      message.success("Làm mới cache thành công");
+    } catch (error) {
+      message.error("Lỗi khi làm mới cache");
+    } finally {
+    }
+  };
   const handleSubmit = async (values: any) => {
     setError("");
     setLoading(true);
@@ -39,6 +47,7 @@ export default function LoginPage() {
       message.error(errorMsg);
     } finally {
       setLoading(false);
+      handleReloadCache();
     }
   };
 

@@ -5,7 +5,6 @@ import { authAPI, systemAPI } from "@/services/api";
 import {
   DashboardOutlined,
   DownloadOutlined,
-  HistoryOutlined,
   InfoCircleOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
@@ -244,11 +243,11 @@ export default function DashboardLayout() {
       icon: <Package size={16} />,
       label: <Link to='/dashboard/master-products'>Sản phẩm</Link>,
     },
-    {
-      key: "/dashboard/crawl-history",
-      icon: <HistoryOutlined />,
-      label: <Link to='/dashboard/crawl-history'>Lịch sử quét</Link>,
-    },
+    // {
+    //   key: "/dashboard/crawl-history",
+    //   icon: <HistoryOutlined />,
+    //   label: <Link to='/dashboard/crawl-history'>Lịch sử quét</Link>,
+    // },
     {
       key: "/dashboard/guides",
       icon: <InfoCircleOutlined />,

@@ -54,18 +54,12 @@ router.get("/select-box", async (req, res) => {
     let whereClauses = [];
 
     // STAFF: Only show assigned shops
-    if (type === "STAFF") {
-      // Assuming you have a join table `user_shops`
+    if (type !== "ADMIN") {
       whereClauses.push(
-        "id IN (SELECT shop_id FROM user_shops WHERE user_id = $" +
+        "id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $" +
           (params.length + 1) +
           ")",
       );
-      params.push(userId);
-    }
-
-    if (type != "ADMIN") {
-      whereClauses.push("owner_id = $" + (params.length + 1));
       params.push(userId);
     }
 
@@ -113,11 +107,10 @@ router.get("/", async (req, res) => {
     const countParams = [];
     let whereClauses = [];
 
-    // STAFF: Only show assigned shops
-    if (type === "STAFF") {
-      // Assuming you have a join table `user_shops`
+    // STAFF (non-ADMIN): Only show assigned shops
+    if (type !== "ADMIN") {
       whereClauses.push(
-        "id IN (SELECT shop_id FROM user_shops WHERE user_id = $" +
+        "id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $" +
           (params.length + 1) +
           ")",
       );
@@ -135,12 +128,6 @@ router.get("/", async (req, res) => {
       );
       params.push(`%${search}%`);
       countParams.push(`%${search}%`);
-    }
-
-    if (type != "ADMIN") {
-      whereClauses.push("owner_id = $" + (params.length + 1));
-      params.push(userId);
-      countParams.push(userId);
     }
 
     if (whereClauses.length > 0) {
@@ -187,8 +174,8 @@ router.get("/:id", async (req, res) => {
     let query = "SELECT * FROM shops WHERE id = $1";
     const params = [id];
 
-    if (type != "ADMIN") {
-      query += " AND owner_id = $2";
+    if (type !== "ADMIN") {
+      query += " AND id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $2)";
       params.push(userId);
     }
     const { rows } = await db.query(query, params);
@@ -208,7 +195,7 @@ router.get("/:id", async (req, res) => {
 // POST: Create shop
 router.post("/", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
 
     const { name, url, platform, code, brand_ids } = req.body;
@@ -227,6 +214,14 @@ router.post("/", async (req, res) => {
 
     if (!shop) {
       return res.status(500).json({ error: "Failed to create shop" });
+    }
+
+    // If STAFF, automatically map to this shop
+    if (type === "STAFF") {
+      await db.query(
+        "INSERT INTO user_shop_mappings (user_id, shop_id) VALUES ($1, $2)",
+        [userId, shop.id],
+      );
     }
 
     // Add brands if provided
@@ -276,7 +271,7 @@ router.put("/:id", async (req, res) => {
     ];
 
     if (type !== "ADMIN") {
-      query += " AND owner_id = $7";
+      query += " AND id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $7)";
       params.push(userId);
     }
 
@@ -321,7 +316,7 @@ router.delete("/:id", async (req, res) => {
     const params = [id];
 
     if (type !== "ADMIN") {
-      query += " AND owner_id = $2";
+      query += " AND id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $2)";
       params.push(userId);
     }
 
@@ -347,7 +342,20 @@ router.delete("/:id", async (req, res) => {
 // GET: Get shop products with pagination and search
 router.get("/:id/products", async (req, res) => {
   try {
+    const { userId, type } = requireAuthUserId(req, res);
+    if (!userId) return;
+
     const { id: shopId } = req.params;
+
+    if (type !== "ADMIN") {
+      const { rows } = await db.query(
+        "SELECT 1 FROM user_shop_mappings WHERE user_id = $1 AND shop_id = $2 LIMIT 1",
+        [userId, shopId],
+      );
+      if (rows.length === 0) {
+        return res.status(403).json({ error: "Forbidden: You do not have access to this shop" });
+      }
+    }
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 1000);
     const search = (req.query.search || "").toString().trim();
@@ -403,7 +411,20 @@ router.get("/:id/products", async (req, res) => {
 // POST: Reset product status
 router.post("/:id/reset-product-status", async (req, res) => {
   try {
+    const { userId, type } = requireAuthUserId(req, res);
+    if (!userId) return;
+
     const { id: shopId } = req.params;
+
+    if (type !== "ADMIN") {
+      const { rows } = await db.query(
+        "SELECT 1 FROM user_shop_mappings WHERE user_id = $1 AND shop_id = $2 LIMIT 1",
+        [userId, shopId],
+      );
+      if (rows.length === 0) {
+        return res.status(403).json({ error: "Forbidden: You do not have access to this shop" });
+      }
+    }
 
     const { rowCount } = await db.query(
       "UPDATE shop_products SET is_warning_checked = false, is_under_original = false WHERE shop_id = $1",
@@ -435,8 +456,18 @@ router.post("/:id/reset-product-status", async (req, res) => {
 router.post("/:id/import-products", async (req, res) => {
   try {
     const { id: shopId } = req.params;
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
+
+    if (type !== "ADMIN") {
+      const { rows } = await db.query(
+        "SELECT 1 FROM user_shop_mappings WHERE user_id = $1 AND shop_id = $2 LIMIT 1",
+        [userId, shopId],
+      );
+      if (rows.length === 0) {
+        return res.status(403).json({ error: "Forbidden: You do not have access to this shop" });
+      }
+    }
 
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });

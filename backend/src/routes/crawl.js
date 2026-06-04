@@ -12,10 +12,20 @@ router.post("/:id/crawl", async (req, res) => {
   let crawlHistoryId = null;
 
   try {
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
 
     const shopId = req.params.id;
+
+    if (type !== "ADMIN") {
+      const { rows: mapping } = await db.query(
+        "SELECT 1 FROM user_shop_mappings WHERE user_id = $1 AND shop_id = $2 LIMIT 1",
+        [userId, shopId],
+      );
+      if (mapping.length === 0) {
+        return res.status(403).json({ error: "Forbidden: You do not have access to this shop" });
+      }
+    }
 
     const { rows: shopRows } = await db.query(
       "SELECT * FROM shops WHERE id = $1",

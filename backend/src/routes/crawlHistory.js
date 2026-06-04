@@ -2,6 +2,7 @@
 
 import { Router } from "express";
 import { db } from "../lib/db.js";
+import { requireAuthUserId } from "../lib/requestAuth.js";
 
 const router = Router();
 
@@ -20,6 +21,9 @@ const normalizeHistory = (item) => ({
 // GET: List crawl history with pagination
 router.get("/", async (req, res) => {
   try {
+    const { userId, type } = requireAuthUserId(req, res);
+    if (!userId) return;
+
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 200);
     const status = (req.query.status || "").toString().trim();
@@ -33,9 +37,14 @@ router.get("/", async (req, res) => {
       FROM crawl_histories ch
       LEFT JOIN shops s ON ch.shop_id = s.id
     `;
-    let countQuery = "SELECT COUNT(*) FROM crawl_histories";
+    let countQuery = "SELECT COUNT(*) FROM crawl_histories ch";
     const params = [];
     let whereClauses = [];
+
+    if (type !== "ADMIN") {
+      whereClauses.push("ch.shop_id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $" + (params.length + 1) + ")");
+      params.push(userId);
+    }
 
     if (status) {
       whereClauses.push("status = $" + (params.length + 1));
@@ -89,6 +98,9 @@ router.get("/", async (req, res) => {
 // GET: Crawl history detail
 router.get("/:id", async (req, res) => {
   try {
+    const { userId, type } = requireAuthUserId(req, res);
+    if (!userId) return;
+
     const { id } = req.params;
 
     const { rows } = await db.query(
@@ -106,6 +118,16 @@ router.get("/:id", async (req, res) => {
 
     if (!data) {
       return res.status(404).json({ error: "History not found" });
+    }
+
+    if (type !== "ADMIN") {
+      const { rows: mapping } = await db.query(
+        "SELECT 1 FROM user_shop_mappings WHERE user_id = $1 AND shop_id = $2 LIMIT 1",
+        [userId, data.shop_id],
+      );
+      if (mapping.length === 0) {
+        return res.status(403).json({ error: "Forbidden: You do not have access to this shop's history" });
+      }
     }
 
     res.json(normalizeHistory(data));

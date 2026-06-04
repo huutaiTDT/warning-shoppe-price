@@ -117,7 +117,7 @@ const applyListFilters = (
 // GET: Count products under original price (DB-based)
 router.get("/under-original-count", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
 
     const search = (req.query.search || "").toString().trim();
@@ -132,9 +132,14 @@ router.get("/under-original-count", async (req, res) => {
       SELECT sp.id, sp.price, sp.price_min, sp.price_max, sp.original_price
       FROM shop_products sp
       JOIN shops s ON sp.shop_id = s.id
-      WHERE s.owner_id = $1 AND sp.original_price > 0 AND ((sp.price_min + sp.price_max) / 2) < sp.original_price
+      WHERE sp.original_price > 0 AND ((sp.price_min + sp.price_max) / 2) < sp.original_price
     `;
-    const params = [userId];
+    const params = [];
+
+    if (type !== "ADMIN") {
+      query += " AND sp.shop_id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $1)";
+      params.push(userId);
+    }
 
     if (search) {
       query += ` AND sp.name ILIKE $${params.length + 1}`;
@@ -173,18 +178,22 @@ router.get("/under-original-count", async (req, res) => {
 // GET: Export products to Excel (must be before GET /)
 router.get("/export", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
 
-    const { rows: products } = await db.query(
-      `
+    let query = `
       SELECT p.id, p.name, p.models, p.variants, p.price_min, p.price_max, p.original_price
       FROM shop_products p
       JOIN shops s ON p.shop_id = s.id
-      WHERE s.owner_id = $1
-    `,
-      [userId],
-    );
+    `;
+    const params = [];
+
+    if (type !== "ADMIN") {
+      query += " WHERE s.id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $1)";
+      params.push(userId);
+    }
+
+    const { rows: products } = await db.query(query, params);
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Products");
@@ -200,7 +209,6 @@ router.get("/export", async (req, res) => {
     ];
 
     (products || [])
-      .filter((p) => p.shops?.owner_id === userId)
       .forEach((p) =>
         sheet.addRow({
           ...p,
@@ -226,7 +234,7 @@ router.get("/export", async (req, res) => {
 // POST: Import products from Excel
 router.post("/import", upload.single("file"), async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
 
     if (!req.file) {
@@ -254,10 +262,13 @@ router.post("/import", upload.single("file"), async (req, res) => {
     });
 
     for (const item of updates) {
-      const { rows: existingRows } = await db.query(
-        `SELECT sp.id FROM shop_products sp JOIN shops s ON sp.shop_id = s.id WHERE sp.id = $1 AND s.owner_id = $2`,
-        [item.id, userId],
-      );
+      let checkQuery = `SELECT sp.id FROM shop_products sp JOIN shops s ON sp.shop_id = s.id WHERE sp.id = $1`;
+      const checkParams = [item.id];
+      if (type !== "ADMIN") {
+        checkQuery += ` AND s.id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $2)`;
+        checkParams.push(userId);
+      }
+      const { rows: existingRows } = await db.query(checkQuery, checkParams);
 
       if (existingRows.length === 0) {
         continue;
@@ -349,20 +360,25 @@ router.post("/sync-from-link", async (req, res) => {
 // GET: Product detail
 router.get("/:id", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
 
     const { id } = req.params;
 
-    const { rows } = await db.query(
-      `
+    let query = `
       SELECT p.*, s.name as "shopName", s.code as "shopCode", s.platform as "shopPlatform"
       FROM shop_products p
       JOIN shops s ON p.shop_id = s.id
-      WHERE p.id = $1 AND s.owner_id = $2
-    `,
-      [id, userId],
-    );
+      WHERE p.id = $1
+    `;
+    const params = [id];
+
+    if (type !== "ADMIN") {
+      query += " AND s.id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $2)";
+      params.push(userId);
+    }
+
+    const { rows } = await db.query(query, params);
     const product = rows[0];
 
     if (!product) {
@@ -381,10 +397,22 @@ router.get("/:id", async (req, res) => {
 // GET: Product price history
 router.get("/:id/price-history", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
 
     const { id } = req.params;
+
+    if (type !== "ADMIN") {
+      // Check if product belongs to a shop assigned to the user
+      const { rows: productRows } = await db.query(
+        "SELECT 1 FROM shop_products sp JOIN user_shop_mappings usm ON sp.shop_id = usm.shop_id WHERE sp.id = $1 AND usm.user_id = $2 LIMIT 1",
+        [id, userId],
+      );
+      if (productRows.length === 0) {
+        return res.status(403).json({ error: "Forbidden: You do not have access to this product's price history" });
+      }
+    }
+
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 100, 1), 500);
 
     const { rows: history } = await db.query(
@@ -423,7 +451,7 @@ router.get("/:id/price-history", async (req, res) => {
 // POST: Create product
 router.post("/", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
 
     const {
@@ -452,10 +480,14 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Shop ID required" });
     }
 
-    const { rows: shopRows } = await db.query(
-      "SELECT id FROM shops WHERE id = $1 AND owner_id = $2",
-      [shop_id, userId],
-    );
+    let shopQuery = "SELECT id FROM shops WHERE id = $1";
+    const shopParams = [shop_id];
+    if (type !== "ADMIN") {
+      shopQuery += " AND id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $2)";
+      shopParams.push(userId);
+    }
+
+    const { rows: shopRows } = await db.query(shopQuery, shopParams);
 
     if (shopRows.length === 0) {
       return res
@@ -507,7 +539,7 @@ router.post("/", async (req, res) => {
 // PUT: Update product
 router.put("/:id", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
 
     const { id } = req.params;
@@ -529,10 +561,13 @@ router.put("/:id", async (req, res) => {
       variants,
     } = req.body;
 
-    const { rows: existingRows } = await db.query(
-      "SELECT sp.id, sp.shop_id, sp.brand FROM shop_products sp JOIN shops s ON sp.shop_id = s.id WHERE sp.id = $1 AND s.owner_id = $2",
-      [id, userId],
-    );
+    let existingQuery = "SELECT sp.id, sp.shop_id, sp.brand FROM shop_products sp JOIN shops s ON sp.shop_id = s.id WHERE sp.id = $1";
+    const existingParams = [id];
+    if (type !== "ADMIN") {
+      existingQuery += " AND s.id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $2)";
+      existingParams.push(userId);
+    }
+    const { rows: existingRows } = await db.query(existingQuery, existingParams);
     const existing = existingRows[0];
 
     if (!existing) {
@@ -542,10 +577,13 @@ router.put("/:id", async (req, res) => {
     }
 
     if (shop_id !== undefined) {
-      const { rows: nextShopRows } = await db.query(
-        "SELECT id FROM shops WHERE id = $1 AND owner_id = $2",
-        [shop_id, userId],
-      );
+      let nextShopQuery = "SELECT id FROM shops WHERE id = $1";
+      const nextShopParams = [shop_id];
+      if (type !== "ADMIN") {
+        nextShopQuery += " AND id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $2)";
+        nextShopParams.push(userId);
+      }
+      const { rows: nextShopRows } = await db.query(nextShopQuery, nextShopParams);
       if (nextShopRows.length === 0) {
         return res
           .status(403)
@@ -619,15 +657,18 @@ router.put("/:id", async (req, res) => {
 // DELETE: Delete product
 router.delete("/:id", async (req, res) => {
   try {
-    const { userId } = requireAuthUserId(req, res);
+    const { userId, type } = requireAuthUserId(req, res);
     if (!userId) return;
 
     const { id } = req.params;
 
-    const { rows: existingRows } = await db.query(
-      "SELECT sp.id FROM shop_products sp JOIN shops s ON sp.shop_id = s.id WHERE sp.id = $1 AND s.owner_id = $2",
-      [id, userId],
-    );
+    let existingQuery = "SELECT sp.id FROM shop_products sp JOIN shops s ON sp.shop_id = s.id WHERE sp.id = $1";
+    const existingParams = [id];
+    if (type !== "ADMIN") {
+      existingQuery += " AND s.id IN (SELECT shop_id FROM user_shop_mappings WHERE user_id = $2)";
+      existingParams.push(userId);
+    }
+    const { rows: existingRows } = await db.query(existingQuery, existingParams);
 
     if (existingRows.length === 0) {
       return res.status(403).json({ error: "Không có quyền xóa sản phẩm này" });

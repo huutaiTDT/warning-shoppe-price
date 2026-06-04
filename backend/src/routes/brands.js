@@ -3,14 +3,35 @@
 import { Router } from "express";
 import { db } from "../lib/db.js";
 import { requireAuthUserId } from "../lib/requestAuth.js";
+import { roleGuard } from "../middleware/roleGuard.js";
 
 const router = Router();
 
 router.get("/select-box", async (req, res) => {
   try {
-    const { rows: brands } = await db.query(
-      "SELECT id, name FROM brands WHERE is_active = true ORDER BY name ASC",
-    );
+    const auth = requireAuthUserId(req, res);
+    if (!auth) return;
+    const { userId, type } = auth;
+
+    let query = "SELECT id, name FROM brands WHERE is_active = true";
+    const params = [];
+
+    if (type !== "ADMIN") {
+      const { rows: brandIds } = await db.query(
+        "SELECT brand_id FROM account_brand_permissions WHERE user_id = $1",
+        [userId],
+      );
+      const userBrandIds = brandIds.map((b) => b.brand_id);
+      if (userBrandIds.length > 0) {
+        query += ` AND id IN (${userBrandIds.join(",")})`;
+      } else {
+        query += " AND 1=0";
+      }
+    }
+
+    query += " ORDER BY name ASC";
+
+    const { rows: brands } = await db.query(query, params);
 
     if (!brands) {
       return res.status(500).json({ error: "Failed to fetch brands" });
@@ -31,11 +52,8 @@ router.get("/select-box", async (req, res) => {
 // GET: List brands with pagination
 router.get("/", async (req, res) => {
   try {
-    const { userId, type } = requireAuthUserId(req);
-    if (!userId) {
-      res.status(500).message("Unauthorized");
-      return;
-    }
+    const { userId, type } = requireAuthUserId(req, res);
+    if (!userId) return;
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 200);
     const search = (req.query.search || "").toString().trim();
@@ -109,7 +127,20 @@ router.get("/", async (req, res) => {
 // GET: Brand detail
 router.get("/:id", async (req, res) => {
   try {
+    const { userId, type } = requireAuthUserId(req, res);
+    if (!userId) return;
+
     const { id } = req.params;
+
+    if (type !== "ADMIN") {
+      const { rows: permissionRows } = await db.query(
+        "SELECT 1 FROM account_brand_permissions WHERE user_id = $1 AND brand_id = $2 LIMIT 1",
+        [userId, id],
+      );
+      if (permissionRows.length === 0) {
+        return res.status(403).json({ error: "Forbidden: You do not have permission to access this brand" });
+      }
+    }
 
     const { rows } = await db.query("SELECT * FROM brands WHERE id = $1", [id]);
     const brand = rows[0];
@@ -126,7 +157,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST: Create brand
-router.post("/", async (req, res) => {
+router.post("/", roleGuard(["ADMIN"]), async (req, res) => {
   try {
     const name = (req.body?.name || "").toString().trim();
     const code = (req.body?.code || "").toString().trim();
@@ -155,7 +186,7 @@ router.post("/", async (req, res) => {
 });
 
 // PUT: Update brand
-router.put("/:id", async (req, res) => {
+router.put("/:id", roleGuard(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
     const name = (req.body?.name || "").toString().trim();
@@ -191,7 +222,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE: Delete brand
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", roleGuard(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -210,28 +241,6 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// GET: Select box options
-router.get("/select-box", async (req, res) => {
-  try {
-    const { rows: brands } = await db.query(
-      "SELECT id, name FROM brands WHERE is_active = true ORDER BY name ASC",
-    );
 
-    if (!brands) {
-      return res.status(500).json({ error: "Failed to fetch brands" });
-    }
-
-    res.json(
-      (brands || []).map((brand) => ({
-        value: brand.id,
-        label: brand.name,
-        ...brand,
-      })),
-    );
-  } catch (error) {
-    console.error("Error fetching brand select box:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
 
 export default router;

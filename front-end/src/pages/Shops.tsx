@@ -3,7 +3,7 @@
 import Pagination from "@/components/pagination";
 import { crawlHistoryAPI, shopsAPI } from "@/services/api";
 import { Button, Input, Popconfirm, Space, Table, message } from "antd";
-import { Edit, Eye, Play, Plus, Trash2 } from "lucide-react";
+import { Edit, Eye, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -203,7 +203,7 @@ export default function ShopsPage() {
       fixed: "right" as const,
       render: (_: any, record: any) => (
         <Space size='large'>
-          {!record?.is_sys_product_by_link && (
+          {/* {!record?.is_sys_product_by_link && (
             <Button
               type='primary'
               size='large'
@@ -214,7 +214,7 @@ export default function ShopsPage() {
                 handleCrawl(record.id, record.name || "Cửa hàng");
               }}
             />
-          )}
+          )} */}
           <Link to={`/dashboard/shops/${record.id}/edit`}>
             <Button size='large' icon={<Edit size={14} />} />
           </Link>
