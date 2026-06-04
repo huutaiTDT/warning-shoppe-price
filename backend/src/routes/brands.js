@@ -170,6 +170,17 @@ router.post("/", roleGuard(["ADMIN"]), async (req, res) => {
       return res.status(400).json({ error: "Brand name is required" });
     }
 
+    //check exist brand name
+    const { rows: existingRows } = await db.query(
+      "SELECT id FROM brands WHERE name = $1 or code = $2",
+      [name, code],
+    );
+    if (existingRows.length > 0) {
+      return res
+        .status(400)
+        .json({ error: "Brand name or code already exists" });
+    }
+
     const { rows } = await db.query(
       "INSERT INTO brands (name, code, description, is_active) VALUES ($1, $2, $3, $4) RETURNING *",
       [name, code || null, description || null, Boolean(is_active)],
