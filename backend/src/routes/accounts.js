@@ -56,6 +56,17 @@ router.post("/", roleGuard(["ADMIN"]), async (req, res) => {
       return res.status(400).json({ error: "Invalid account type" });
     }
 
+    // check exist username or email
+    const { rows: existing } = await db.query(
+      "SELECT id FROM users WHERE username = $1 OR email = $2",
+      [username, email],
+    );
+    if (existing.length > 0) {
+      return res
+        .status(400)
+        .json({ error: "Username or email already exists" });
+    }
+
     // Default password
     const defaultPassword = "123456";
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
@@ -71,10 +82,12 @@ router.post("/", roleGuard(["ADMIN"]), async (req, res) => {
     }
 
     // Assign shops if STAFF
-      if (shopIds.length > 0) {
-        const values = shopIds.map(id => `(${user.id}, ${id})`).join(", ");
-        await db.query(`INSERT INTO account_shop_assignments (user_id, shop_id) VALUES ${values}`);
-      }
+    if (shopIds?.length > 0) {
+      const values = shopIds.map((id) => `(${user.id}, ${id})`).join(", ");
+      await db.query(
+        `INSERT INTO account_shop_assignments (user_id, shop_id) VALUES ${values}`,
+      );
+    }
 
     res.status(201).json({
       success: true,
@@ -110,7 +123,7 @@ router.get("/:id", roleGuard(["ADMIN"]), async (req, res) => {
     if (user.type === "STAFF") {
       const { rows: assignments } = await db.query(
         "SELECT shop_id FROM account_shop_assignments WHERE user_id = $1",
-        [id]
+        [id],
       );
       shops = (assignments || []).map((a) => a.shop_id);
     }
@@ -139,10 +152,22 @@ router.put("/:id", roleGuard(["ADMIN"]), async (req, res) => {
 
     const updates = [];
     const params = [];
-    if (email) { params.push(email); updates.push(`email = $${params.length}`); }
-    if (type && ["STAFF", "ADMIN"].includes(type)) { params.push(type); updates.push(`type = $${params.length}`); }
-    if (is_active !== undefined) { params.push(is_active); updates.push(`is_active = $${params.length}`); }
-    if (must_change_password !== undefined) { params.push(must_change_password); updates.push(`must_change_password = $${params.length}`); }
+    if (email) {
+      params.push(email);
+      updates.push(`email = $${params.length}`);
+    }
+    if (type && ["STAFF", "ADMIN"].includes(type)) {
+      params.push(type);
+      updates.push(`type = $${params.length}`);
+    }
+    if (is_active !== undefined) {
+      params.push(is_active);
+      updates.push(`is_active = $${params.length}`);
+    }
+    if (must_change_password !== undefined) {
+      params.push(must_change_password);
+      updates.push(`must_change_password = $${params.length}`);
+    }
 
     if (updates.length === 0) {
       return res.status(400).json({ error: "No fields to update" });
@@ -151,7 +176,7 @@ router.put("/:id", roleGuard(["ADMIN"]), async (req, res) => {
     params.push(id);
     const { rows } = await db.query(
       `UPDATE users SET ${updates.join(", ")} WHERE id = $${params.length} RETURNING *`,
-      params
+      params,
     );
     const user = rows[0];
 
@@ -162,12 +187,17 @@ router.put("/:id", roleGuard(["ADMIN"]), async (req, res) => {
     // Update shop assignments if provided
     if (Array.isArray(shopIds)) {
       // Delete existing assignments
-      await db.query("DELETE FROM account_shop_assignments WHERE user_id = $1", [id]);
+      await db.query(
+        "DELETE FROM account_shop_assignments WHERE user_id = $1",
+        [id],
+      );
 
       // Create new assignments
       if (shopIds.length > 0) {
-        const values = shopIds.map(shopId => `(${id}, ${shopId})`).join(", ");
-        await db.query(`INSERT INTO account_shop_assignments (user_id, shop_id) VALUES ${values}`);
+        const values = shopIds.map((shopId) => `(${id}, ${shopId})`).join(", ");
+        await db.query(
+          `INSERT INTO account_shop_assignments (user_id, shop_id) VALUES ${values}`,
+        );
       }
     }
 
@@ -209,7 +239,7 @@ router.get("/shops", async (req, res) => {
 
     const { rows: data } = await db.query(
       `SELECT s.* FROM account_shop_assignments asa JOIN shops s ON asa.shop_id = s.id WHERE asa.user_id = $1`,
-      [auth.userId]
+      [auth.userId],
     );
 
     res.json({
@@ -268,7 +298,10 @@ router.post("/:id/brands", roleGuard(["ADMIN"]), async (req, res) => {
     }
 
     // Verify user exists and is STAFF
-    const { rows } = await db.query("SELECT id, type FROM users WHERE id = $1", [userId]);
+    const { rows } = await db.query(
+      "SELECT id, type FROM users WHERE id = $1",
+      [userId],
+    );
     const user = rows[0];
 
     if (!user) {
@@ -282,12 +315,18 @@ router.post("/:id/brands", roleGuard(["ADMIN"]), async (req, res) => {
     }
 
     // Delete existing permissions
-    await db.query("DELETE FROM account_brand_permissions WHERE user_id = $1", [userId]);
+    await db.query("DELETE FROM account_brand_permissions WHERE user_id = $1", [
+      userId,
+    ]);
 
     // Insert new permissions
     if (brand_ids.length > 0) {
-      const values = brand_ids.map(brand_id => `(${userId}, ${brand_id})`).join(", ");
-      await db.query(`INSERT INTO account_brand_permissions (user_id, brand_id) VALUES ${values}`);
+      const values = brand_ids
+        .map((brand_id) => `(${userId}, ${brand_id})`)
+        .join(", ");
+      await db.query(
+        `INSERT INTO account_brand_permissions (user_id, brand_id) VALUES ${values}`,
+      );
     }
 
     res.json({
@@ -312,7 +351,10 @@ router.delete(
     try {
       const { id: userId, brand_id } = req.params;
 
-      await db.query("DELETE FROM account_brand_permissions WHERE user_id = $1 AND brand_id = $2", [userId, brand_id]);
+      await db.query(
+        "DELETE FROM account_brand_permissions WHERE user_id = $1 AND brand_id = $2",
+        [userId, brand_id],
+      );
 
       res.json({ success: true, message: "Brand removed from account" });
     } catch (error) {

@@ -493,28 +493,52 @@ export default function AdminAccountBrandManager() {
 
       {/* Temporary Password Modal */}
       <Modal
-        title='Account Created Successfully ✓'
+        title={
+          <span style={{ color: "var(--text-primary, #fff)" }}>
+            Account Created Successfully ✓
+          </span>
+        }
         open={passwordModalVisible}
         onOk={() => setPasswordModalVisible(false)}
         onCancel={() => setPasswordModalVisible(false)}
         okText='Done'
         cancelText={null}
         width={500}>
+        {/* Account Info */}
         <div
           style={{
             padding: "16px",
-            backgroundColor: "#f6ffed",
-            borderRadius: "4px",
+            borderRadius: "12px",
+            border: "1px solid rgba(255,255,255,0.08)",
             borderLeft: "4px solid #52c41a",
             marginBottom: "16px",
+            background: "#141414",
           }}>
-          <p style={{ margin: "0 0 8px 0", color: "#333" }}>
+          <p
+            style={{
+              margin: "0 0 8px 0",
+              color: "rgba(255,255,255,0.88)",
+            }}>
             <strong>Account created:</strong>{" "}
-            <code>{createdAccountUsername}</code>
+            <code
+              style={{
+                color: "#73d13d",
+                background: "rgba(255,255,255,0.06)",
+                padding: "2px 6px",
+                borderRadius: "6px",
+              }}>
+              {createdAccountUsername}
+            </code>
           </p>
-          <p style={{ margin: "8px 0 0 0", color: "#333" }}>
+
+          <p
+            style={{
+              margin: "8px 0 0 0",
+              color: "rgba(255,255,255,0.88)",
+            }}>
             <strong>Temporary Password:</strong>
           </p>
+
           <div
             style={{
               display: "flex",
@@ -524,16 +548,20 @@ export default function AdminAccountBrandManager() {
             }}>
             <code
               style={{
-                padding: "8px 12px",
-                backgroundColor: "#fff",
-                borderRadius: "4px",
-                border: "1px solid #d9d9d9",
+                padding: "10px 12px",
+                backgroundColor: "#1f1f1f",
+                borderRadius: "8px",
+                border: "1px solid rgba(255,255,255,0.08)",
                 flex: 1,
                 fontWeight: "bold",
                 fontSize: "14px",
+                color: "#fff",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
               }}>
               {tempPassword}
             </code>
+
             <Button
               type='primary'
               size='small'
@@ -543,21 +571,31 @@ export default function AdminAccountBrandManager() {
           </div>
         </div>
 
+        {/* Important Steps */}
         <div
           style={{
-            padding: "12px",
-            backgroundColor: "#fff7e6",
-            borderRadius: "4px",
+            padding: "14px 16px",
+            backgroundColor: "rgba(250, 173, 20, 0.08)",
+            borderRadius: "12px",
+            border: "1px solid rgba(250, 173, 20, 0.2)",
             borderLeft: "4px solid #faad14",
           }}>
-          <p style={{ margin: "0 0 8px 0", fontWeight: "500", color: "#333" }}>
-            Important Steps:
+          <p
+            style={{
+              margin: "0 0 8px 0",
+              fontWeight: 600,
+              color: "#faad14",
+            }}>
+            Important Steps
           </p>
+
           <ol
             style={{
-              margin: "8px 0 0 16px",
+              margin: "8px 0 0 18px",
               paddingLeft: 0,
-              fontSize: "12px",
+              fontSize: "13px",
+              color: "rgba(255,255,255,0.75)",
+              lineHeight: 1.7,
             }}>
             <li>Share the username and temporary password with the user</li>
             <li>User must login with these credentials</li>
