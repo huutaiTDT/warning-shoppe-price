@@ -66,7 +66,9 @@ router.get("/", async (req, res) => {
         .json({ error: "Failed to fetch brand permissions" });
     }
 
-    const userBrandIds = (brandPermissionRows || []).map((p) => p.brand_id);
+    const userBrandIds = (brandPermissionRows || []).map(
+      (p) => `'${p.brand_id}'`,
+    );
     const isAdmin = auth?.type === "ADMIN";
 
     // ========================
@@ -118,7 +120,7 @@ router.get("/", async (req, res) => {
 
     if (isWarning !== undefined && isWarning !== "") {
       whereClauses.push("is_warning = $" + (params.length + 1));
-      const warningBool = isWarning === 'true';
+      const warningBool = isWarning === "true";
       params.push(warningBool);
       countParams.push(warningBool);
     }
@@ -191,7 +193,9 @@ router.get("/:id", async (req, res) => {
     const auth = getAuthContext(req);
     const { id } = req.params;
 
-    const { rows } = await db.query("SELECT * FROM products WHERE id = $1", [id]);
+    const { rows } = await db.query("SELECT * FROM products WHERE id = $1", [
+      id,
+    ]);
     const product = rows[0];
 
     if (!product) {
@@ -234,7 +238,9 @@ router.post("/", async (req, res) => {
 
     // Validate brand_id if provided
     if (brand_id) {
-      const { rows } = await db.query("SELECT id FROM brands WHERE id = $1", [brand_id]);
+      const { rows } = await db.query("SELECT id FROM brands WHERE id = $1", [
+        brand_id,
+      ]);
       const brand = rows[0];
 
       if (!brand) {
@@ -249,7 +255,16 @@ router.post("/", async (req, res) => {
     const { rows } = await db.query(
       `INSERT INTO products (owner_id, name, brand_id, models, variants, listed_price, is_active, is_warning, created_at) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING *`,
-      [userId, name, brand_id, models, variants, listed_price, is_active, false]
+      [
+        userId,
+        name,
+        brand_id,
+        models,
+        variants,
+        listed_price,
+        is_active,
+        false,
+      ],
     );
     const data = rows[0];
 
@@ -280,7 +295,10 @@ router.put("/:id", async (req, res) => {
     const { id } = req.params;
 
     // Verify access
-    const { rows: prodRows } = await db.query("SELECT * FROM products WHERE id = $1", [id]);
+    const { rows: prodRows } = await db.query(
+      "SELECT * FROM products WHERE id = $1",
+      [id],
+    );
     const product = prodRows[0];
 
     if (!product) {
@@ -296,7 +314,9 @@ router.put("/:id", async (req, res) => {
 
     // Validate brand_id if provided
     if (req.body?.brand_id) {
-      const { rows } = await db.query("SELECT id FROM brands WHERE id = $1", [req.body.brand_id]);
+      const { rows } = await db.query("SELECT id FROM brands WHERE id = $1", [
+        req.body.brand_id,
+      ]);
       const brand = rows[0];
 
       if (!brand) {
@@ -330,13 +350,13 @@ router.put("/:id", async (req, res) => {
     if (updateKeys.length === 0) {
       return res.json(product);
     }
-    
+
     const setClauses = updateKeys.map((key, idx) => `${key} = $${idx + 1}`);
-    const values = updateKeys.map(key => updates[key]);
-    
+    const values = updateKeys.map((key) => updates[key]);
+
     const { rows } = await db.query(
       `UPDATE products SET ${setClauses.join(", ")} WHERE id = $${values.length + 1} RETURNING *`,
-      [...values, id]
+      [...values, id],
     );
     const data = rows[0];
 
@@ -362,7 +382,9 @@ router.delete("/:id", async (req, res) => {
     const { id } = req.params;
 
     // Verify access
-    const { rows } = await db.query("SELECT * FROM products WHERE id = $1", [id]);
+    const { rows } = await db.query("SELECT * FROM products WHERE id = $1", [
+      id,
+    ]);
     const product = rows[0];
 
     if (!product) {
@@ -427,34 +449,42 @@ router.post("/import", upload.single("file"), async (req, res) => {
     }
     // add brand if it not exist
     for (const brandName of brands) {
-      const { rows: existingRows } = await db.query("SELECT id FROM brands WHERE name = $1", [brandName]);
+      const { rows: existingRows } = await db.query(
+        "SELECT id FROM brands WHERE name = $1",
+        [brandName],
+      );
       const existingBrand = existingRows[0];
 
       if (!existingBrand) {
         try {
           const { rows: newRows } = await db.query(
             "INSERT INTO brands (name, code) VALUES ($1, $2) RETURNING *",
-            [brandName, brandName.toLowerCase()]
+            [brandName, brandName.toLowerCase()],
           );
           const newBrand = newRows[0];
 
           // add account_brand_permissions for new brand
           await db.query(
             "INSERT INTO account_brand_permissions (user_id, brand_id) VALUES ($1, $2)",
-            [userId, newBrand.id]
+            [userId, newBrand.id],
           );
 
-          console.log(`Inserted new brand: ${brandName} with id ${newBrand.id}`);
+          console.log(
+            `Inserted new brand: ${brandName} with id ${newBrand.id}`,
+          );
         } catch (err) {
           console.error(`Error inserting brand ${brandName}:`, err);
         }
       }
     }
-    
+
     let brandFoundData = [];
     if (brands.length > 0) {
       const placeholders = brands.map((_, idx) => `$${idx + 1}`).join(",");
-      const { rows } = await db.query(`SELECT id, name FROM brands WHERE name IN (${placeholders})`, brands);
+      const { rows } = await db.query(
+        `SELECT id, name FROM brands WHERE name IN (${placeholders})`,
+        brands,
+      );
       brandFoundData = rows;
     }
 
@@ -498,7 +528,7 @@ router.post("/import", upload.single("file"), async (req, res) => {
           const { rows } = await db.query(
             `INSERT INTO products (owner_id, name, brand_id, models, variants, listed_price, is_active, is_warning, created_at) 
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING *`,
-            [userId, name, brandId, [], variants, listedPrice, true, false]
+            [userId, name, brandId, [], variants, listedPrice, true, false],
           );
           insertedProduct = rows[0];
         } catch (insertError) {
@@ -551,7 +581,7 @@ router.get("/export/xlsx", async (req, res) => {
        LEFT JOIN brands b ON p.brand_id = b.id 
        WHERE p.owner_id = $1 
        ORDER BY p.created_at DESC`,
-      [userId]
+      [userId],
     );
 
     const workbook = new ExcelJS.Workbook();
@@ -597,7 +627,10 @@ router.get("/:id/get-warning", async (req, res) => {
 
     const { id } = req.params;
     // Verify product exists and access
-    const { rows: prodRows } = await db.query("SELECT * FROM products WHERE id = $1", [id]);
+    const { rows: prodRows } = await db.query(
+      "SELECT * FROM products WHERE id = $1",
+      [id],
+    );
     const product = prodRows[0];
 
     if (!product) {
@@ -607,13 +640,13 @@ router.get("/:id/get-warning", async (req, res) => {
     const price = product.listed_price || 0;
     const variants = product?.variants;
     const warnings = [];
-    
+
     let shopProducts = [];
     try {
       const conditions = [`(price_min < $1 OR price < $1 OR price_max < $1)`];
       const conditionsOr = [];
       const params = [price];
-      
+
       for (const row of variants || []) {
         const variantString = row.toString().trim()?.toLowerCase();
         if (variantString) {
@@ -621,14 +654,10 @@ router.get("/:id/get-warning", async (req, res) => {
         }
       }
 
-      
       const finalQuery = `SELECT id, external_link, name, url, price_min, price, price_max, shop_id, rating, sold 
          FROM shop_products 
-         WHERE (${conditions.join(" OR ")}) AND (${conditionsOr.join(" OR ")})` 
-      const { rows } = await db.query(
-        finalQuery,
-        params
-      );
+         WHERE (${conditions.join(" OR ")}) AND (${conditionsOr.join(" OR ")})`;
+      const { rows } = await db.query(finalQuery, params);
 
       shopProducts = rows;
     } catch (shopProductError) {
@@ -638,7 +667,10 @@ router.get("/:id/get-warning", async (req, res) => {
     for (const sp of shopProducts || []) {
       let shopInfo = null;
       try {
-        const { rows: shopRows } = await db.query("SELECT id, name, url FROM shops WHERE id = $1", [sp.shop_id]);
+        const { rows: shopRows } = await db.query(
+          "SELECT id, name, url FROM shops WHERE id = $1",
+          [sp.shop_id],
+        );
         shopInfo = shopRows[0];
       } catch (e) {
         console.error("Error fetching shop info:", e);

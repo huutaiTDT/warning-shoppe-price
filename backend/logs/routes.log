@@ -1,6 +1,6 @@
 ==========================================
       REGISTERED API ROUTES
-   (Updated at 2026-06-04T04:16:41.527Z)
+   (Updated at 2026-06-04T04:23:13.684Z)
 ==========================================
 [DELETE] /accounts/?(?=/|$)/:id
 [DELETE] /accounts/?(?=/|$)/:id/brands/:brand_id

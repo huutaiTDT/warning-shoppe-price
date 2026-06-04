@@ -71,7 +71,7 @@ router.get("/", async (req, res) => {
         "SELECT brand_id FROM account_brand_permissions WHERE user_id = $1",
         [userId],
       );
-      const userBrandIds = brandIds.map((b) => b.brand_id);
+      const userBrandIds = brandIds.map((b) => `'${b.brand_id}'`);
       if (userBrandIds.length > 0) {
         whereClauses.push(`id IN (${userBrandIds.join(",")})`);
       } else {
@@ -138,7 +138,9 @@ router.get("/:id", async (req, res) => {
         [userId, id],
       );
       if (permissionRows.length === 0) {
-        return res.status(403).json({ error: "Forbidden: You do not have permission to access this brand" });
+        return res.status(403).json({
+          error: "Forbidden: You do not have permission to access this brand",
+        });
       }
     }
 
@@ -240,7 +242,5 @@ router.delete("/:id", roleGuard(["ADMIN"]), async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
 
 export default router;

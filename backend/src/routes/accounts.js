@@ -318,12 +318,12 @@ router.post("/:id/brands", roleGuard(["ADMIN"]), async (req, res) => {
 
     // Insert new permissions
     if (brand_ids.length > 0) {
-      const values = brand_ids
-        .map((brand_id) => `(${userId}, ${brand_id})`)
-        .join(", ");
-      await db.query(
-        `INSERT INTO account_brand_permissions (user_id, brand_id) VALUES ${values}`,
-      );
+      for (const brandId of brand_ids) {
+        await db.query(
+          "INSERT INTO account_brand_permissions (user_id, brand_id) VALUES ($1, $2)",
+          [userId, brandId],
+        );
+      }
     }
 
     res.json({
